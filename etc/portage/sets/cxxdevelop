@@ -1,0 +1,9 @@
+dev-cpp/catch
+dev-cpp/nlohmann_json
+dev-cpp/range-v3
+dev-cpp/tbb
+dev-libs/libfmt
+dev-libs/poco
+dev-util/include-what-you-use
+sys-devel/gdb
+sys-libs/libcxx

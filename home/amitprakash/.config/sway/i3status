@@ -1,0 +1,6 @@
+#!/bin/bash
+while
+    # date | tr '\n' ' '
+    cat /sys/class/power_supply/BAT0/capacity
+do sleep 1
+done
