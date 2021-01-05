@@ -1,0 +1,64 @@
+# Features I want myself
+app-editors/vim python
+app-emulation/libpod fuse
+dev-java/openjdk-bin -webstart
+dev-lang/rust system-bootstrap system-llvm wasm
+dev-lang/spidermonkey clang -system-icu
+dev-lang/python sqlite
+dev-libs/boost -mpi
+dev-python/pygobject cairo
+dev-vcs/git -iconv -webdav
+gui-apps/waybar network popups tray
+gui-wm/sway tray wallpapers
+media-libs/freetype png
+# media-libs/libglvnd X
+media-sound/pulseaudio gtk -tcpd
+media-video/ffmpeg cpudetection libdrm gnutls x264
+media-video/pipewire gstreamer ffmpeg
+net-firewall/iptables nftables
+net-libs/nodejs -icu -inspector -npm -snapshot
+net-misc/networkmanager -ppp -dhclient -nss gnutls iwd
+net-wireless/iwd wired
+sys-apps/dbus user-session
+sys-apps/portage -rsync-verify
+sys-apps/systemd audit curl gnuefi importd nat xkb
+sys-apps/xdg-desktop-portal screencast
+sys-devel/gcc go
+sys-devel/llvm -doc libedit
+sys-devel/clang default-compiler-rt default-libcxx
+sys-libs/glibc -multiarch
+sys-kernel/gentoo-sources experimental symlink
+sys-kernel/linux-firmware savedconfig
+www-client/firefox clang custom-cflags custom-optimization hwaccel system-harfbuzz -system-icu system-jpeg system-libevent system-libvpx system-sqlite -gmp-autoupdate screenshot screencast
+x11-libs/libdrm video_cards_radeon
+x11-terms/gnome-terminal -nautilus -browser-extension -gnome-shell
+
+# Requierd by sway
+x11-libs/gdk-pixbuf jpeg
+
+# sys-devel/llvm depends on sys-devel/binutils[cxx]
+sys-devel/binutils cxx
+
+# sys-app/busybox[pam] requires sys-apps/busybox[-static]
+sys-apps/busybox -static
+
+# Required by wlroots
+media-libs/mesa gles2 vulkan-overlay
+
+# dev-util/itstool depends on dev-libs/libxml2[python]
+dev-libs/libxml2 python
+
+# app-text/xmlto[text] required by x11-misc/xdg-utils
+app-text/xmlto text
+
+# Required by www-client/firefox
+media-libs/libpng apng
+# dev-db/sqlite secure-delete
+media-libs/libvpx postproc
+# sys-devel/llvm gold
+#
+# Required by sci-libs/or-tools
+dev-cpp/glog gflags
+
+# Required by sys-apps/flatpak
+dev-util/ostree curl

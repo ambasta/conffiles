@@ -1,0 +1,14 @@
+[user]
+	email = amit.prakash.ambasta@gmail.com
+	name = Amit Prakash Ambasta
+[commit]
+	gpgSign = true
+	template = ~/.gitmessage
+[core]
+	autocrlf = input
+[pull]
+	rebase = false
+[color]
+	ui = auto
+[init]
+	defaultBranch = master
