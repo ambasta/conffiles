@@ -9,7 +9,7 @@ do
         mkdir -p $filedir
     fi
 
-    if [ -f "$filepath" ] | [ -L "$filepath" ]
+    if [ -f "$filepath" ] || [ -L "$filepath" ]
     then
         rm "$filepath"
     fi
