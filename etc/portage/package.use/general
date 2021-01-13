@@ -30,7 +30,7 @@ sys-devel/clang default-compiler-rt default-libcxx
 sys-libs/glibc -multiarch
 sys-kernel/gentoo-sources experimental symlink
 sys-kernel/linux-firmware savedconfig
-www-client/firefox clang custom-cflags custom-optimization hwaccel system-harfbuzz -system-icu system-jpeg system-libevent system-libvpx system-sqlite -gmp-autoupdate screenshot screencast
+www-client/firefox clang custom-cflags custom-optimization hwaccel system-harfbuzz system-icu system-jpeg system-libevent system-libvpx system-sqlite gmp-autoupdate screenshot screencast
 x11-libs/libdrm video_cards_radeon
 x11-terms/gnome-terminal -nautilus -browser-extension -gnome-shell
 
