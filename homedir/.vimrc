@@ -5,6 +5,16 @@ if &compatible
   set nocompatible               " Be iMproved
 endif
 
+" tab navigation like firefox
+:nmap <C-z> :tabprevious<CR>
+:nmap <C-x> :tabnext<CR>
+:map <C-z> :tabprevious<CR>
+:map <C-x> :tabnext<CR>
+:imap <C-z> <Esc>:tabprevious<CR>i
+:imap <C-x> <Esc>:tabnext<CR>i
+:nmap <C-t> :tabnew<CR>
+:imap <C-t> <Esc>:tabnew<CR>
+
 " Required:
 " Add the dein installation directory into runtimepath
 set runtimepath+=/home/amitprakash/.cache/dein/repos/github.com/Shougo/dein.vim
