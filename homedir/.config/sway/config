@@ -26,7 +26,8 @@ set $lockscreen swaylock
 ### Output configuration
 #
 # Default wallpaper (more resolutions are available in /usr/share/backgrounds/sway/)
-output * bg /usr/share/backgrounds/sway/Sway_Wallpaper_Blue_1920x1080.png fill
+output * adaptive_sync on
+output * max_render_time 1
 output * subpixel rgb
 default_border pixel
 # output eDP-1 pos 0 0 res 1920x1080
@@ -226,7 +227,6 @@ exec systemctl --user start mako.service
 set $gnome-schema org.gnome.desktop.interface
 
 exec_always {
-  gsettings set $gnome-schema gtk-theme 'Flat-Remix-GTK-Green-Dark'
-  gsettings set $gnome-schema icon-theme 'Flat-Remix-Green-Dark'
+  gsettings set $gnome-schema gtk-theme "Flat-Remix-GTK-Green-Darkest-Solid-NoBorder"
 }
 
