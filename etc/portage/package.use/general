@@ -13,7 +13,7 @@ gui-libs/wlroots seatd
 gui-wm/sway seatd tray wallpapers
 media-libs/freetype png
 # media-libs/libglvnd X
-media-sound/pulseaudio gtk -tcpd
+media-sound/pulseaudio -gtk -tcpd
 media-video/ffmpeg cpudetection libdrm gnutls x264
 media-video/pipewire gstreamer ffmpeg
 net-firewall/iptables nftables
@@ -73,3 +73,6 @@ media-libs/mesa X
 gui-libs/wlroots X
 gui-wm/sway X
 x11-base/xorg-server -xorg
+
+# Required by os-prober
+sys-boot/grub mount
