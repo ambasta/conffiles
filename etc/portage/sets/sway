@@ -6,4 +6,5 @@ gui-apps/wf-recorder
 gui-apps/wlgreet
 gui-libs/xdg-desktop-portal-wlr
 gui-wm/sway[tray,wallpapers]
+sys-apps/xdg-desktop-portal-gtk
 x11-terms/gnome-terminal
