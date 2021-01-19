@@ -1,6 +1,7 @@
 # Features I want myself
 app-editors/vim python
-app-emulation/libpod fuse
+# move app-emulation/libpod app-emulation/podman
+app-emulation/podman fuse
 dev-java/openjdk-bin -webstart
 dev-lang/rust system-bootstrap system-llvm wasm
 dev-lang/spidermonkey clang -system-icu

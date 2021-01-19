@@ -30,6 +30,8 @@ output * adaptive_sync on
 output * max_render_time 1
 output * subpixel rgb
 default_border pixel
+
+include ~/.config/sway/resolution
 # output eDP-1 pos 0 0 res 1920x1080
 # output DP-1 pos 1920 0 res 1920x1200 scale 1
 #
