@@ -1,6 +1,5 @@
 # Features I want myself
 app-editors/vim python
-# move app-emulation/libpod app-emulation/podman
 app-emulation/podman fuse
 dev-java/openjdk-bin -webstart
 dev-lang/rust system-bootstrap system-llvm wasm
@@ -18,7 +17,7 @@ media-sound/pulseaudio -gtk -tcpd
 media-video/ffmpeg cpudetection libdrm gnutls x264
 media-video/pipewire gstreamer ffmpeg
 net-firewall/iptables nftables
-net-libs/nodejs -icu -inspector -npm -snapshot
+net-libs/nodejs icu system-icu inspector -npm -snapshot
 net-misc/networkmanager -ppp -dhclient -nss gnutls iwd
 net-wireless/iwd wired
 sys-apps/dbus user-session
