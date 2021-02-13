@@ -1,0 +1,18 @@
+background-color=#2f3441
+text-color=#81a1c1
+width=350
+height=112
+padding=15
+margin=10
+progress-color= source #4c566a80
+icon-path=/usr/share/icons/Papirus-Dark
+max-icon-size=85
+
+border-size=3
+border-radius=8
+border-color=#353B49
+
+default-timeout=5000
+
+[urgency=high]
+ignore-timeout=1

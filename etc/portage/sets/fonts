@@ -1,4 +1,8 @@
+# For huge list of emojis
 media-fonts/fontawesome
-media-fonts/kochi-substitute
-media-fonts/roboto
+# For scientific symbols
 media-fonts/stix-fonts
+# For FOSS implementation of Google Fonts, By Google
+media-fonts/noto
+# For Chinese/Japanese/Korean Fonts
+# media-fonts/noto[cjk]

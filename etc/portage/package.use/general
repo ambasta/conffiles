@@ -10,10 +10,11 @@ dev-python/pygobject cairo
 dev-vcs/git -iconv -webdav
 gui-apps/waybar network popups tray
 gui-libs/wlroots seatd
-gui-wm/sway seatd tray wallpapers
+gui-wm/sway -swaybg seatd tray wallpapers
+# media-fonts/noto -extra
 media-libs/freetype png
 # media-libs/libglvnd X
-media-sound/pulseaudio -gtk -tcpd
+media-sound/pulseaudio -gtk -tcpd 
 media-video/ffmpeg cpudetection libdrm gnutls x264
 media-video/pipewire gstreamer ffmpeg
 net-firewall/iptables nftables
@@ -26,7 +27,7 @@ sys-apps/systemd audit curl gnuefi importd nat xkb
 sys-apps/xdg-desktop-portal screencast
 sys-devel/gcc go
 sys-devel/llvm -doc libedit
-sys-devel/clang default-compiler-rt default-libcxx
+sys-devel/clang
 sys-libs/glibc -multiarch
 sys-kernel/gentoo-sources experimental symlink
 sys-kernel/linux-firmware savedconfig
@@ -38,7 +39,7 @@ x11-terms/gnome-terminal -nautilus -browser-extension -gnome-shell
 x11-libs/gdk-pixbuf jpeg
 
 # sys-devel/llvm depends on sys-devel/binutils[cxx]
-sys-devel/binutils cxx
+# sys-devel/binutils cxx
 
 # sys-app/busybox[pam] requires sys-apps/busybox[-static]
 sys-apps/busybox -static
@@ -67,12 +68,12 @@ dev-util/ostree curl
 
 # XWayland
 # Comment this section to run a pure wayland environment
-media-libs/libepoxy X
-media-libs/libglvnd X
-media-libs/mesa X
-gui-libs/wlroots X
-gui-wm/sway X
-x11-base/xorg-server -xorg
+# media-libs/libepoxy X
+# media-libs/libglvnd X
+# media-libs/mesa X
+# gui-libs/wlroots X
+# gui-wm/sway X
+# x11-base/xorg-server -xorg
 
 # Required by os-prober
 sys-boot/grub mount

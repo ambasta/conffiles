@@ -4,8 +4,22 @@
   "python.formatting.provider": "black",
   "eslint.packageManager": "yarn",
   "prettier.eslintIntegration": true,
-  "clangd.checkUpdates": true,
   "languageserver": {
+    "clangd": {
+      "command": "clangd",
+      "args": [
+        "--query-driver=/usr/x86_64-pc-linux-gnu/gcc-bin/10.2.0/x86_64-pc-linux-gnu-gcc",
+        "-j=8",
+        "--pch-storage=memory",
+        "--clang-tidy",
+        "--header-insertion=iwyu",
+        "--header-insertion-decorators",
+        "--suggest-missing-includes"
+      ],
+      "trace.server": "verbose",
+      "rootPatterns": ["compile_commands.json"],
+      "filetypes": ["c", "cpp", "cxx", "h", "hpp", "hxx"]
+    },
     "golang": {
       "command": "gopls",
       "rootPatterns": ["go.mod"],

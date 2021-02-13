@@ -29,7 +29,7 @@ set $lockscreen swaylock
 output * adaptive_sync on
 output * max_render_time 1
 output * subpixel rgb
-default_border pixel
+default_border pixel 5
 
 include ~/.config/sway/resolution
 # output eDP-1 pos 0 0 res 1920x1080
@@ -53,6 +53,7 @@ include ~/.config/sway/resolution
 #       middle_emulation enabled
 #   }
 #
+
 # You can get the names of your inputs by running: swaymsg -t get_inputs
 # Read `man 5 sway-input` for more information about this section.
 
@@ -206,29 +207,21 @@ mode "resize" {
 }
 bindsym $mod+r mode "resize"
 
-#
-# Status Bar:
-#
-# Read `man 5 sway-bar` for more information about this section.
-bar {
-    swaybar_command waybar
-    # position top
-    # colors {
-    #     statusline #ffffff
-    #     background #323232
-    #     inactive_workspace #32323200 #32323200 #5c5c5c
-    # }
-    # # status_command while "cat /sys/class/power_supply/BAT0/capacity | tr '\n' ' ' && date"; do sleep 1; done
-    # status_command exec /home/amitprakash/.config/sway/i3status
-    # tray_padding 5
-}
-
-exec systemctl --user start mako.service
-# exec systemctl --user start waybar.service
+# exec systemctl --user start xdg-desktop-portal.service
+# exec systemctl --user start xdg-desktop-portal-wlr.service
+# exec systemctl --user start xdg-desktop-portal-gtk.service
 
 set $gnome-schema org.gnome.desktop.interface
 
 exec_always {
   gsettings set $gnome-schema gtk-theme "Flat-Remix-GTK-Green-Darkest-Solid-NoBorder"
+  gsettings set $gnome-schema icon-theme "Adwaita"
+  gsettings set $gnome-schema cursor-theme "Adwaita"
+  gsettings set $gnome-schema monospace-font-name 'Noto Sans Mono 11'
 }
 
+# exec systemctl --user start pipewire-pulse.service
+# exec systemctl --user start pipewire.service
+exec systemctl --user start xdg-desktop-portal-wlr.service
+exec systemctl --user start mako.service
+exec systemctl --user start waybar.service
