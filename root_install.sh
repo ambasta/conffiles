@@ -1,5 +1,5 @@
 #!/bin/bash
-for file in $(find etc -type f)
+for file in $(find etc usr -type f)
 do
     filepath="/$file"
     filedir=$(dirname $filepath)
