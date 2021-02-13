@@ -2,6 +2,9 @@ export PATH="$(yarn global bin):$HOME/.local/bin:$PATH"
 export N_PREFIX="$HOME/.local"
 export GPG_TTY=$(tty)
 
+export XDG_CONFIG_HOME=$HOME/.config
+export XDG_CACHE_HOME=$HOME/.cache
+
 alias awsauth='source /home/amitprakash/.virtualenvs/aws/bin/activate'
 alias ipythonshell='source /home/amitprakash/.virtualenvs/ipython/bin/activate'
 alias chrome='google-chrome-stable --ozone-platform=wayland --enable-features=UseOzonePlatform'
@@ -16,7 +19,7 @@ alias chrome='google-chrome-stable --ozone-platform=wayland --enable-features=Us
 # uninstall by removing these lines or running `tabtab uninstall slss`
 # [ -f /home/amitprakash/.config/yarn/global/node_modules/tabtab/.completions/slss.bash ] && . /home/amitprakash/.config/yarn/global/node_modules/tabtab/.completions/slss.bash
 
-eval `keychain --eval --agents gpg,ssh id_rsa F4ED5371C992A1D4C487C307F0B27A3B6D7CF774`
+eval `keychain -q --eval --agents gpg,ssh id_rsa F4ED5371C992A1D4C487C307F0B27A3B6D7CF774`
 
 # export NVM_DIR="$HOME/.nvm"
 # [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
