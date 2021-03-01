@@ -222,6 +222,6 @@ exec_always {
 
 # exec systemctl --user start pipewire-pulse.service
 # exec systemctl --user start pipewire.service
-exec systemctl --user start xdg-desktop-portal-wlr.service
+# exec systemctl --user start xdg-desktop-portal-wlr.service
 exec systemctl --user start mako.service
 exec systemctl --user start waybar.service
