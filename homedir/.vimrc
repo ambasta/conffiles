@@ -19,7 +19,7 @@ au BufNewFile,BufRead *.cmake,CMakeLists.txt set filetype=cmake
 :imap <C-t> <Esc>:tabnew<CR>
 
 " Rootpatterns for typescript/javascript monorepo w/ pnp
-autocmd FileType typescript let b:coc_root_patterns=["yarn.lock"]
+autocmd FileType typescript let b:coc_root_patterns=["yarn.lock", "npm.lock"]
 
 " Required:
 " Add the dein installation directory into runtimepath
