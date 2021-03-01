@@ -19,7 +19,7 @@ media-video/ffmpeg cpudetection libdrm gnutls x264
 media-video/pipewire gstreamer ffmpeg
 net-firewall/iptables nftables
 net-libs/nodejs icu system-icu inspector -npm -snapshot
-net-misc/networkmanager -ppp -dhclient -nss gnutls iwd
+net-misc/networkmanager -bluetooth -ppp -dhclient -nss gnutls iwd
 net-wireless/bluez experimental
 net-wireless/iwd wired
 sys-apps/dbus user-session
