@@ -5,6 +5,9 @@ if &compatible
   set nocompatible               " Be iMproved
 endif
 
+" set filetype as CMake for CMakeLists.txt
+au BufNewFile,BufRead *.cmake,CMakeLists.txt set filetype=cmake
+
 " tab navigation like firefox
 :nmap <C-z> :tabprevious<CR>
 :nmap <C-x> :tabnext<CR>
@@ -14,6 +17,9 @@ endif
 :imap <C-x> <Esc>:tabnext<CR>i
 :nmap <C-t> :tabnew<CR>
 :imap <C-t> <Esc>:tabnew<CR>
+
+" Rootpatterns for typescript/javascript monorepo w/ pnp
+autocmd FileType typescript let b:coc_root_patterns=["yarn.lock"]
 
 " Required:
 " Add the dein installation directory into runtimepath
