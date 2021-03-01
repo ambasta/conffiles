@@ -223,5 +223,9 @@ exec_always {
 # exec systemctl --user start pipewire-pulse.service
 # exec systemctl --user start pipewire.service
 # exec systemctl --user start xdg-desktop-portal-wlr.service
+exec systemctl --user import-environment WAYLAND_DISPLAY SWAYSOCK XDG_CURRENT_DESKTOP XDG_SESSION_TYPE
+exec dbus-update-activation-environment 2>/dev/null
+exec dbus-update-activation-environment --systemd WAYLAND_DISPLAY SWAYSOCK XDG_CURRENT_DESKTOP XDG_SESSION_TYPE
+
 exec systemctl --user start mako.service
 exec systemctl --user start waybar.service
