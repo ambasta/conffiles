@@ -1,4 +1,5 @@
 dev-cpp/catch
+dev-cpp/CLI11
 dev-cpp/nlohmann_json
 dev-cpp/range-v3
 dev-cpp/tbb
