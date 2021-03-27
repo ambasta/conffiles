@@ -15,8 +15,8 @@ gui-wm/sway -swaybg seatd tray wallpapers
 media-libs/freetype png
 # media-libs/libglvnd X
 media-sound/pulseaudio -gtk -tcpd 
-media-video/ffmpeg cpudetection libdrm gnutls x264
-media-video/mpv -vaapi -xv
+media-video/ffmpeg cpudetection libdrm gnutls x264 openh264
+media-video/mpv opengl vaapi -xv
 media-video/pipewire gstreamer ffmpeg
 net-firewall/iptables nftables
 net-libs/nodejs icu system-icu inspector -npm -snapshot
