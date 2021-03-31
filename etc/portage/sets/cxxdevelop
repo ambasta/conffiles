@@ -5,8 +5,8 @@ dev-cpp/nlohmann_json
 dev-cpp/range-v3
 dev-cpp/readerwriterqueue
 dev-cpp/tbb
+dev-libs/cppkafka
 dev-libs/libfmt
-dev-libs/librdkafka
 dev-libs/poco
 dev-util/include-what-you-use
 sys-devel/gdb
