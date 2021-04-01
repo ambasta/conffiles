@@ -4,6 +4,7 @@ export GPG_TTY=$(tty)
 
 export XDG_CONFIG_HOME=$HOME/.config
 export XDG_CACHE_HOME=$HOME/.cache
+export _JAVA_AWT_WM_NONREPARENTING=1
 
 alias awsauth='source /home/amitprakash/.virtualenvs/aws/bin/activate'
 alias ipythonshell='source /home/amitprakash/.virtualenvs/ipython/bin/activate'
