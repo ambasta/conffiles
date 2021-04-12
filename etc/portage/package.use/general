@@ -1,6 +1,7 @@
 # Features I want myself
 app-editors/vim python terminal
 app-emulation/podman fuse
+app-emulation/docker -cli
 dev-java/openjdk-bin -webstart
 dev-lang/rust system-bootstrap system-llvm wasm
 dev-lang/spidermonkey clang -system-icu
@@ -14,13 +15,14 @@ gui-wm/sway -swaybg seatd tray wallpapers
 # media-fonts/noto -extra
 media-libs/freetype png
 # media-libs/libglvnd X
-media-sound/pulseaudio -gtk -tcpd 
+media-sound/pulseaudio -gtk -tcpd realtime native-headset
 media-video/ffmpeg cpudetection libdrm gnutls x264 openh264
 media-video/mpv opengl vaapi -xv
 media-video/pipewire gstreamer ffmpeg
 net-firewall/iptables nftables
 net-libs/nodejs icu system-icu inspector -npm -snapshot
 net-misc/networkmanager -bluetooth -ppp -dhclient -nss gnutls iwd
+net-misc/ofono -atmodem -cdmamodem -isimodem -phonesim -qmimodem -provision
 net-wireless/bluez experimental -mesh -obex
 net-wireless/iwd wired
 sys-apps/dbus user-session
@@ -79,3 +81,6 @@ dev-util/ostree curl
 
 # Required by os-prober
 sys-boot/grub mount
+
+# Required by docker
+sys-process/tini static
