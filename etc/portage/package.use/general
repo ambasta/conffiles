@@ -84,3 +84,6 @@ sys-boot/grub mount
 
 # Required by docker
 sys-process/tini static
+
+# Required by gnome-keyring
+app-crypt/gcr gtk
