@@ -32,6 +32,7 @@ output * subpixel rgb
 default_border pixel 5
 
 include ~/.config/sway/resolution
+# include ~/.config/sway/menuoverride
 # output eDP-1 pos 0 0 res 1920x1080
 # output DP-1 pos 1920 0 res 1920x1200 scale 1
 #
@@ -226,6 +227,7 @@ exec_always {
 exec systemctl --user import-environment WAYLAND_DISPLAY SWAYSOCK XDG_CURRENT_DESKTOP XDG_SESSION_TYPE
 exec dbus-update-activation-environment 2>/dev/null
 exec dbus-update-activation-environment --systemd WAYLAND_DISPLAY SWAYSOCK XDG_CURRENT_DESKTOP XDG_SESSION_TYPE
+exec /usr/lib/x86_64-linux-gnu/ukui-polkit/polkit-ukui-authentication-agent-1
 
 exec systemctl --user start mako.service
 exec systemctl --user start waybar.service
