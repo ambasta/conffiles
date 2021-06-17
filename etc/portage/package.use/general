@@ -15,10 +15,10 @@ gui-wm/sway -swaybg seatd tray wallpapers
 # media-fonts/noto -extra
 media-libs/freetype png
 # media-libs/libglvnd X
-media-sound/pulseaudio -gtk -tcpd realtime native-headset
+media-sound/pulseaudio -gtk -tcpd -alsa-plugin realtime native-headset
 media-video/ffmpeg cpudetection libdrm gnutls x264 openh264
 media-video/mpv opengl vaapi -xv
-media-video/pipewire gstreamer ffmpeg
+media-video/pipewire gstreamer ffmpeg pipewire-alsa
 net-firewall/iptables nftables
 net-libs/nodejs icu system-icu inspector -npm -snapshot
 net-misc/networkmanager -bluetooth -ppp -dhclient -nss gnutls iwd
