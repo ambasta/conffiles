@@ -7,4 +7,5 @@ gui-apps/wlgreet
 gui-libs/xdg-desktop-portal-wlr
 gui-wm/sway[tray,wallpapers]
 sys-apps/brightnessctl
+sys-apps/xdg-desktop-portal-gtk
 x11-terms/gnome-terminal
