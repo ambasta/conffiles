@@ -1,4 +1,3 @@
-export PATH="$(yarn global bin):$HOME/.local/bin:$PATH"
 export N_PREFIX="$HOME/.local"
 export GPG_TTY=$(tty)
 
