@@ -5,6 +5,7 @@ dev-cpp/nlohmann_json
 dev-cpp/range-v3
 dev-cpp/readerwriterqueue
 dev-cpp/oneTBB
+dev-libs/boost
 dev-libs/cppkafka
 dev-libs/libfmt
 dev-libs/poco
