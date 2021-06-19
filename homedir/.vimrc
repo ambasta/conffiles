@@ -1,4 +1,5 @@
 set encoding=UTF-8
+set expandtab
 
 "dein Scripts-----------------------------
 if &compatible
