@@ -1,6 +1,7 @@
 dev-libs/bemenu
 gui-apps/grim
 gui-apps/mako
+gui-apps/slurp
 gui-apps/waybar[network,popups,tray]
 gui-apps/wf-recorder
 gui-apps/wlgreet
