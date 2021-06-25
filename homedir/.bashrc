@@ -6,7 +6,7 @@ export XDG_CACHE_HOME=$HOME/.cache
 export _JAVA_AWT_WM_NONREPARENTING=1
 
 alias awsauth='source /home/amitprakash/.virtualenvs/aws/bin/activate'
-alias ipythonshell='source /home/amitprakash/.virtualenvs/ipython/bin/activate'
+alias pyshell='source /home/amitprakash/.virtualenvs/pyshell/bin/activate'
 alias chrome='google-chrome-stable --ozone-platform=wayland --enable-features=UseOzonePlatform'
 
 # tabtab source for serverless package
