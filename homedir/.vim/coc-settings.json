@@ -1,5 +1,5 @@
 {
-  "npm.binPath": "yarn",
+  "npm.binPath": "/usr/bin/yarn",
   "eslint.packageManager": "yarn",
   "prettier.eslintIntegration": true,
   "python.formatting.provider": "black",

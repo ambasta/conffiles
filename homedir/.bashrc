@@ -9,6 +9,9 @@ alias awsauth='source /home/amitprakash/.virtualenvs/aws/bin/activate'
 alias pyshell='source /home/amitprakash/.virtualenvs/pyshell/bin/activate'
 alias chrome='google-chrome-stable --ozone-platform=wayland --enable-features=UseOzonePlatform'
 
+eval $(gnome-keyring-daemon --start)
+export SSH_AUTH_SOCK
+export PATH="$PATH:$(yarn global bin)"
 # tabtab source for serverless package
 # uninstall by removing these lines or running `tabtab uninstall serverless`
 # [ -f /home/amitprakash/.config/yarn/global/node_modules/tabtab/.completions/serverless.bash ] && . /home/amitprakash/.config/yarn/global/node_modules/tabtab/.completions/serverless.bash
@@ -19,7 +22,7 @@ alias chrome='google-chrome-stable --ozone-platform=wayland --enable-features=Us
 # uninstall by removing these lines or running `tabtab uninstall slss`
 # [ -f /home/amitprakash/.config/yarn/global/node_modules/tabtab/.completions/slss.bash ] && . /home/amitprakash/.config/yarn/global/node_modules/tabtab/.completions/slss.bash
 
-eval `keychain -q --eval --agents gpg,ssh id_rsa F4ED5371C992A1D4C487C307F0B27A3B6D7CF774`
+# eval `keychain -q --eval --agents gpg,ssh id_rsa F4ED5371C992A1D4C487C307F0B27A3B6D7CF774`
 
 # export NVM_DIR="$HOME/.nvm"
 # [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
