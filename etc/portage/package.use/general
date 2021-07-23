@@ -13,9 +13,8 @@ gui-apps/waybar network popups tray
 gui-libs/wlroots seatd
 gui-wm/sway -swaybg seatd tray wallpapers
 # media-fonts/noto -extra
-media-libs/freetype png
+media-libs/freetype harfbuzz png
 # media-libs/libglvnd X
-media-sound/pulseaudio -gtk -tcpd -alsa-plugin realtime native-headset
 media-video/ffmpeg cpudetection libdrm gnutls x264 openh264
 media-video/mpv opengl vaapi -xv
 media-video/pipewire gstreamer ffmpeg pipewire-alsa
@@ -29,7 +28,7 @@ sys-apps/dbus user-session
 sys-apps/portage -rsync-verify
 sys-apps/systemd audit curl gnuefi importd nat xkb
 sys-apps/xdg-desktop-portal screencast
-sys-devel/gcc go
+sys-devel/gcc go graphite
 sys-devel/llvm -doc libedit
 sys-devel/clang
 sys-libs/glibc -multiarch
@@ -87,3 +86,11 @@ sys-process/tini static
 
 # Required by gnome-keyring
 app-crypt/gcr gtk
+
+# Required by seahorse
+app-crypt/gcr vala
+app-crypt/libsecret vala
+gui-libs/libhandy vala
+
+# Required by sys-cluster/kube-router
+net-firewall/iptables conntrack
