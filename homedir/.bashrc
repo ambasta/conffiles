@@ -12,3 +12,6 @@ eval $(gnome-keyring-daemon --start)
 export SSH_AUTH_SOCK
 export PATH="$PATH:$(yarn global bin)"
 export PATH="$PATH:$N_PREFIX/bin"
+
+source $HOME/.config/environment.d/00-envvars.conf
+source $HOME/.config/environment.d/01-wayland.conf
