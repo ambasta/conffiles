@@ -1,4 +1,5 @@
 # Features I want myself
+app-crypt/pinentry gtk
 app-editors/vim python terminal
 app-emulation/podman fuse
 app-emulation/docker -cli
