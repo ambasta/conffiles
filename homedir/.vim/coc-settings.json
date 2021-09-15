@@ -1,5 +1,18 @@
 {
   "npm.binPath": "/usr/bin/yarn",
+  "cmake.lsp.enable": true,
+  "clangd.fallbackFlags": ["-std=c++20"],
+  "clangd.arguments": [
+    "--pch-storage=memory",
+    "-j=8",
+    "--completion-style=detailed",
+    "--background-index",
+    "--all-scopes-completion=true",
+    "--header-insertion=iwyu",
+    "--malloc-trim",
+    "--limit-results=10"
+  ],
+  "clangd.semanticHighlighting": true,
   "eslint.packageManager": "yarn",
   "prettier.eslintIntegration": true,
   "python.formatting.provider": "black",
@@ -9,12 +22,7 @@
       "rootPatterns": ["go.mod"],
       "disableWorkspaceFolders": true,
       "filetypes": ["go"]
-    },
-    "cmake": {
-      "command": "cmake-language-server",
-      "filetypes": ["cmake"],
-      "rootPatterns": ["build/"],
-      "initializationOptions": { "buildDirectory": "build" }
     }
-  }
+  },
+  "typescript.suggest.autoImports": true
 }

@@ -94,3 +94,6 @@ gui-libs/libhandy vala
 
 # Required by sys-cluster/kube-router
 net-firewall/iptables conntrack
+
+# Required by media-sound/easyeffects
+media-libs/rubberband ladspa
