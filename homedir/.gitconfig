@@ -13,3 +13,5 @@
 	ui = auto
 [init]
 	defaultBranch = master
+[gpg]
+	program = gpg2

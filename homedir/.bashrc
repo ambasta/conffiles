@@ -1,5 +1,4 @@
 export N_PREFIX="$HOME/.local"
-export GPG_TTY=$(tty)
 
 export XDG_CONFIG_HOME=$HOME/.config
 export XDG_CACHE_HOME=$HOME/.cache
