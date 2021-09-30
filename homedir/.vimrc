@@ -1,20 +1,12 @@
+set term=xterm-256color
 set encoding=UTF-8
 set expandtab
 
 " tab navigation like firefox
 " Map normal mode
-:nmap <C-t> :tabnew<CR>
-:nmap <C-x> :tabnext<CR>
-:nmap <C-z> :tabprevious<CR>
-
-" Map to all modes
-" :map <C-x> :tabnext<CR>
-" :map <C-z> :tabprevious<CR>
-
-" Map insert mode
-" :imap <C-t> <Esc>:tabnew<CR>
-" :imap <C-z> <Esc>:tabprevious<CR>i
-" :imap <C-x> <Esc>:tabnext<CR>i
+nmap <C-t> :tabnew<CR>
+nmap <C-x> :tabnext<CR>
+nmap <C-z> :tabprevious<CR>
 
 " Rootpatterns for typescript/javascript monorepo w/ pnp
 " autocmd FileType typescript let b:coc_root_patterns=["yarn.lock", "npm.lock"]

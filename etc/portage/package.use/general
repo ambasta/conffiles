@@ -10,6 +10,7 @@ dev-lang/python sqlite
 dev-libs/boost -mpi
 dev-python/pygobject cairo
 dev-vcs/git -iconv -webdav
+gui-apps/foot docs grapheme-clustering
 gui-apps/waybar network popups tray
 gui-libs/wlroots seatd
 gui-wm/sway -swaybg seatd tray wallpapers

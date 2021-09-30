@@ -14,7 +14,7 @@ set $down j
 set $up k
 set $right l
 # Your preferred terminal emulator
-set $term gnome-terminal
+set $term foot
 # Your preferred application launcher
 # bindsym $mod+d exec kitty --name=launcher -- /bin/bash -c 'compgen -c | sort -u | xargs -r swaymsg -t command exec'
 # for_window [app_id="^launcher$"] floating enable, border none
