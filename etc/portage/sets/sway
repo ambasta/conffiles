@@ -1,4 +1,5 @@
 dev-libs/bemenu
+gui-apps/foot
 gui-apps/grim
 gui-apps/mako
 gui-apps/slurp
@@ -6,6 +7,4 @@ gui-apps/waybar[network,popups,tray]
 gui-apps/wlgreet
 gui-libs/xdg-desktop-portal-wlr
 gui-wm/sway[tray,wallpapers]
-media-sound/easyeffects
 sys-apps/brightnessctl
-x11-terms/gnome-terminal

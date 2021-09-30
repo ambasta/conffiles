@@ -1,6 +1,5 @@
 {
   "npm.binPath": "/usr/bin/yarn",
-  "cmake.lsp.enable": true,
   "clangd.fallbackFlags": ["-std=c++20"],
   "clangd.arguments": [
     "--pch-storage=memory",
@@ -22,6 +21,10 @@
       "rootPatterns": ["go.mod"],
       "disableWorkspaceFolders": true,
       "filetypes": ["go"]
+    },
+    "cmake": {
+      "command": "cmake-language-server",
+      "filetypes": ["cmake"]
     }
   },
   "typescript.suggest.autoImports": true
