@@ -8,9 +8,9 @@ alias awsauth='source /home/amitprakash/.virtualenvs/aws/bin/activate'
 alias pyshell='source /home/amitprakash/.virtualenvs/pyshell/bin/activate'
 alias chrome='/home/amitprakash/chrome/chrome --ozone-platform=wayland --enable-features=UseOzonePlatform'
 
-eval $(gnome-keyring-daemon --start)
+# eval $(gnome-keyring-daemon --start)
 export SSH_AUTH_SOCK
-export PATH="$PATH:$(yarn global bin)"
+# export PATH="$PATH:$(yarn global bin)"
 export PATH="$PATH:$N_PREFIX/bin"
 
 source $HOME/.config/environment.d/00-envvars.conf
