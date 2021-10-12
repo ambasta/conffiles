@@ -1,0 +1,4 @@
+dev-cpp/glibmm
+dev-cpp/gstreamermm
+dev-cpp/gtkmm
+gui-libs/libadwaita
