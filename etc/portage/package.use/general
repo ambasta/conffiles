@@ -15,6 +15,7 @@ gui-apps/waybar network popups tray
 gui-libs/wlroots seatd
 gui-wm/sway -swaybg seatd tray wallpapers
 # media-fonts/noto -extra
+media-gfx/graphviz gts svg
 media-libs/freetype harfbuzz png
 # media-libs/libglvnd X
 media-video/ffmpeg cpudetection libdrm gnutls x264 openh264

@@ -9,5 +9,4 @@ dev-libs/boost
 dev-libs/cppkafka
 dev-libs/libfmt
 dev-libs/poco
-dev-util/include-what-you-use
 sys-devel/gdb
