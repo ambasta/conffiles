@@ -32,7 +32,7 @@ sys-apps/dbus user-session
 sys-apps/portage -rsync-verify
 sys-apps/systemd audit curl gnuefi importd nat xkb
 sys-apps/xdg-desktop-portal screencast
-sys-devel/gcc go graphite
+sys-devel/gcc -go graphite
 sys-devel/llvm -doc libedit
 sys-devel/clang
 sys-libs/glibc -multiarch
