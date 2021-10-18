@@ -83,7 +83,7 @@ dev-util/ostree curl
 # x11-base/xorg-server -xorg
 
 # Required by os-prober
-sys-boot/grub mount
+sys-boot/grub -mount -themes -fonts
 
 # Required by docker
 sys-process/tini static
