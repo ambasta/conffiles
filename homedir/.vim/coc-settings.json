@@ -25,6 +25,11 @@
     "cmake": {
       "command": "cmake-language-server",
       "filetypes": ["cmake"]
+    },
+    "rust": {
+      "command": "rls",
+      "filetypes": ["rust"],
+      "rootPatterns": ["Cargo.toml"]
     }
   },
   "typescript.suggest.autoImports": true
