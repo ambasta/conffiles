@@ -5,6 +5,7 @@ app-emulation/podman fuse
 app-emulation/docker -cli
 dev-java/openjdk-bin -webstart
 dev-lang/rust system-bootstrap system-llvm wasm
+dev-lang/rust-bin rustfmt rls
 dev-lang/spidermonkey clang -system-icu
 dev-lang/python sqlite
 dev-libs/boost -mpi
@@ -38,6 +39,7 @@ sys-devel/clang
 sys-libs/glibc -multiarch
 sys-kernel/gentoo-sources experimental symlink
 sys-kernel/linux-firmware savedconfig
+virtual/rust rustfmt
 www-client/firefox clang custom-cflags custom-optimization hwaccel system-harfbuzz system-icu system-jpeg system-libevent system-libvpx system-sqlite gmp-autoupdate screenshot screencast
 x11-libs/libdrm video_cards_radeon
 x11-terms/gnome-terminal -nautilus -browser-extension -gnome-shell
