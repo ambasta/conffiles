@@ -1,0 +1,21 @@
+[submodule "homedir/.config/nvim/pack/codegen/start/copilot.vim"]
+	path = homedir/.config/nvim/pack/codegen/start/copilot.vim
+	url = https://github.com/github/copilot.vim.git
+[submodule "homedir/.config/nvim/pack/syntax/start/gentoo-syntax"]
+	path = homedir/.config/nvim/pack/syntax/start/gentoo-syntax
+	url = https://github.com/gentoo/gentoo-syntax.git
+[submodule "homedir/.config/nvim/pack/syntax/start/vim-jsonc"]
+	path = homedir/.config/nvim/pack/syntax/start/vim-jsonc
+	url = https://github.com/kevinoid/vim-jsonc.git
+[submodule "homedir/.config/nvim/pack/lsp/start/nvim-lspconfig"]
+	path = homedir/.config/nvim/pack/lsp/start/nvim-lspconfig
+	url = https://github.com/neovim/nvim-lspconfig.git
+[submodule "homedir/.config/nvim/pack/utils/start/nvim-lsp-installer"]
+	path = homedir/.config/nvim/pack/utils/start/nvim-lsp-installer
+	url = https://github.com/williamboman/nvim-lsp-installer.git
+[submodule "homedir/.config/nvim/pack/lsp/start/nvim-cmp"]
+	path = homedir/.config/nvim/pack/lsp/start/nvim-cmp
+	url = https://github.com/hrsh7th/nvim-cmp.git
+[submodule "homedir/.config/nvim/pack/utils/start/cmp-nvim-lsp"]
+	path = homedir/.config/nvim/pack/utils/start/cmp-nvim-lsp
+	url = https://github.com/hrsh7th/cmp-nvim-lsp.git

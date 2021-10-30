@@ -4,6 +4,7 @@ gui-apps/grim
 gui-apps/mako
 gui-apps/slurp
 gui-apps/waybar[network,popups,tray]
+gui-apps/wl-clipboard
 gui-apps/wlgreet
 gui-libs/xdg-desktop-portal-wlr
 gui-wm/sway[tray,wallpapers]
