@@ -19,3 +19,6 @@
 [submodule "homedir/.config/nvim/pack/utils/start/cmp-nvim-lsp"]
 	path = homedir/.config/nvim/pack/utils/start/cmp-nvim-lsp
 	url = https://github.com/hrsh7th/cmp-nvim-lsp.git
+[submodule "homedir/.config/nvim/pack/colorscheme/start/gruvbox"]
+	path = homedir/.config/nvim/pack/colorscheme/start/gruvbox
+	url = https://github.com/gruvbox-community/gruvbox.git
