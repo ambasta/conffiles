@@ -23,6 +23,8 @@ call dein#begin('/home/amitprakash/.cache/dein')
 " Start dein
 call dein#add('/home/amitprakash/.cache/dein/repos/github.com/Shougo/dein.vim')
 
+" Add copilot
+call dein#add('github/copilot.vim')
 " Add coc
 call dein#add('neoclide/coc.nvim', { 'merged': 0, 'rev': 'release' })
 " Add gentoo syntax
