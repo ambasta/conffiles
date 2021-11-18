@@ -11,14 +11,11 @@ dev-lang/python sqlite
 dev-libs/boost -mpi
 dev-python/pygobject cairo
 dev-vcs/git -iconv -webdav
-gui-apps/foot docs grapheme-clustering
 gui-apps/waybar network popups tray
 gui-libs/wlroots seatd
 gui-wm/sway -swaybg seatd tray wallpapers
-# media-fonts/noto -extra
 media-gfx/graphviz gts svg
 media-libs/freetype harfbuzz png
-# media-libs/libglvnd X
 media-video/ffmpeg cpudetection libdrm gnutls x264 openh264
 media-video/mpv opengl vaapi -xv
 media-video/pipewire gstreamer ffmpeg pipewire-alsa
@@ -30,12 +27,11 @@ net-p2p/transmission gtk
 net-wireless/bluez experimental -mesh -obex
 net-wireless/iwd wired
 sys-apps/dbus user-session
-sys-apps/portage -rsync-verify
+sys-apps/portage gentoo-dev -rsync-verify
 sys-apps/systemd audit curl gnuefi importd nat xkb
 sys-apps/xdg-desktop-portal screencast
-sys-devel/gcc -go graphite
+sys-devel/gcc -go graphite lto
 sys-devel/llvm -doc libedit
-sys-devel/clang
 sys-libs/glibc -multiarch
 sys-kernel/gentoo-sources experimental symlink
 sys-kernel/linux-firmware savedconfig
