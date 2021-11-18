@@ -19,6 +19,7 @@ set completeopt=menu,menuone,noselect
 let g:gruvbox_italic=1
 let g:gruvbox_contrast_dark = 'hard'
 let g:gruvbox_colors = { 'bg0': ['#000000', 0] }
+let g:lsp_installer_use_yarn = 1
 colorscheme gruvbox
 
 lua << EOF
@@ -49,6 +50,7 @@ cmp.setup({
     mapping = {
         ['<C-Space>'] = cmp.mapping(cmp.mapping.complete(), {'i', 'c'}),
         ['<C-y>'] = cmp.config.disable,
+        ['<Tab>'] = cmp.mapping(cmp.mapping.select_next_item(), {'i', 's'}),
         ['<C-e>'] = cmp.mapping({
             i = cmp.mapping.abort(),
             c = cmp.mapping.close(),
@@ -76,6 +78,8 @@ cmp.setup.cmdline(':', {
     })
 })
 
+lsp_installer.log_level = vim.log.levels.DEBUG
+
 capabilities.update_capabilities(vim.lsp.protocol.make_client_capabilities())
 lsp_installer.on_server_ready(function(server)
     local opts = {
@@ -89,7 +93,7 @@ lsp_installer.on_server_ready(function(server)
     vim.cmd [[ do User LspAttachBuffers ]]
 end)
 
-local servers = { 'clangd', 'eslint', 'gopls', 'rls', 'cmake' }
+local servers = { 'clangd', 'eslint', 'gopls', 'rls', 'cmake'}
 
 for _, server in ipairs(servers) do
     local opts = {
@@ -103,5 +107,14 @@ for _, server in ipairs(servers) do
     vim.cmd [[ do User LspAttachBuffers ]]
 end
 
+nvim_lsp['jsonls'].setup({
+    commands = {
+      Format = {
+        function()
+          vim.lsp.buf.range_formatting({},{0,0},{vim.fn.line("$"),0})
+        end
+      }
+    }
+})
 
 EOF

@@ -20,9 +20,6 @@ function make_symlink() {
 function explore_dir() {
     for file in $(find ${1} -maxdepth 1)
     do
-        # filepath=$HOME/${file#homedir/}
-        # filedir=$(dirname $filepath)
-
 	if [ $file = $1 ]
 	then
 		continue
