@@ -22,18 +22,36 @@ let g:gruvbox_colors = { 'bg0': ['#000000', 0] }
 let g:lsp_installer_use_yarn = 1
 colorscheme gruvbox
 
+" ['<Tab>'] = cmp.mapping(cmp.mapping.select_next_item(), {'i', 's'}),
+" ['<Tab>'] = cmp.mapping(cmp.mapping.select_next_item(), {'i', 's'})
+"
 lua << EOF
+vim.g.copilot_no_tab_map = true
+vim.g.copilot_assume_mapped = true
+vim.g.copilot_tab_fallback = ""
+
 local cmp = require'cmp'
 local lsp_installer = require"nvim-lsp-installer"
 local nvim_lsp = require'lspconfig'
+local null_ls = require('null-ls')
 local capabilities = require('cmp_nvim_lsp')
+local luasnip = require('luasnip')
 
 local on_attach = function(client, bufnr)
   local function buf_set_keymap(...) vim.api.nvim_buf_set_keymap(bufnr, ...) end
   local function buf_set_option(...) vim.api.nvim_buf_set_option(bufnr, ...) end
+  -- local null_ls_formatting_clients = { 'pyright' }
 
   -- Enable completion triggered by <c-x><c-o>
   buf_set_option('omnifunc', 'v:lua.vim.lsp.omnifunc')
+
+  -- for _, value in pairs(null_ls_formatting_clients) do
+  --     if value == client.name then
+  --         client.resolved_capabilities.document_formatting = false
+  --         client.resolved_capabilities.document_range_formatting = false
+  --         break
+  --     end
+  -- end
 
   -- Mappings.
   local opts = { noremap=true, silent=true }
@@ -46,11 +64,43 @@ local on_attach = function(client, bufnr)
   buf_set_keymap('n', '<C-f>', '<cmd>lua vim.lsp.buf.formatting()<CR>', opts)
 end
 
+local on_attach_no_formatting = function(client, bufnr)
+    client.resolved_capabilities.document_formatting = false
+    client.resolved_capabilities.document_range_formatting = false
+    on_attach(client, bufnr)
+end
+
+--         ["<Tab>"] = cmp.mapping(function(fallback)
+--             if cmp.visible() then
+--                 local entry = cmp.get_selected_entry()
+--                 if not entry then
+--                     cmp.select_next_item({ behavior = cmp.SelectBehavior.Select })
+--                 end
+--                 cmp.confirm()
+--             else
+--                 local copilot_keys = vim.fn["copilot#Accept"]()
+-- 
+--                 if copilot_keys ~= "" then
+--                     vim.api.nvim_feedkeys(copilot_keys, "i", true)
+--                 else
+--                     fallback()
+--                 end
+--             end
+--         end, {"i", "s", "c",}),
+
 cmp.setup({
     mapping = {
         ['<C-Space>'] = cmp.mapping(cmp.mapping.complete(), {'i', 'c'}),
+        ["<Tab>"] = function(fallback)
+            if cmp.visible() then
+                cmp.select_next_item()
+            elseif luasnip.expand_or_jumpable() then
+                vim.fn.feedkeys(vim.api.nvim_replace_termcodes('<Plug>luasnip-expand-or-jump', true, true, true), '')
+            else
+                fallback()
+            end
+        end,
         ['<C-y>'] = cmp.config.disable,
-        ['<Tab>'] = cmp.mapping(cmp.mapping.select_next_item(), {'i', 's'}),
         ['<C-e>'] = cmp.mapping({
             i = cmp.mapping.abort(),
             c = cmp.mapping.close(),
@@ -81,6 +131,7 @@ cmp.setup.cmdline(':', {
 lsp_installer.log_level = vim.log.levels.DEBUG
 
 capabilities.update_capabilities(vim.lsp.protocol.make_client_capabilities())
+
 lsp_installer.on_server_ready(function(server)
     local opts = {
         on_attach = on_attach,
@@ -93,7 +144,14 @@ lsp_installer.on_server_ready(function(server)
     vim.cmd [[ do User LspAttachBuffers ]]
 end)
 
-local servers = { 'clangd', 'eslint', 'gopls', 'rls', 'cmake'}
+null_ls.config({
+    sources = {
+        null_ls.builtins.formatting.stylua,
+        null_ls.builtins.formatting.black
+    }
+})
+
+local servers = { 'clangd', 'cmake', 'eslint', 'gopls', 'pyright', 'rls', 'tsserver', 'null-ls'}
 
 for _, server in ipairs(servers) do
     local opts = {
@@ -103,6 +161,15 @@ for _, server in ipairs(servers) do
             debounce_text_changes = 150,
         }
     }
+    if server == 'tsserver' then
+        opts.cmd = { 'yarn', 'typescript-language-server', '--stdio' }
+    elseif server == 'eslint' then
+        opts.cmd = { 'yarn', 'vscode-eslint-language-server', "--stdio" }
+        -- opts.formatCommand = { "yarn", "eslint_d", "--fix-to-stdout", "--stdin", "--stdin-filename=${INPUT}" }
+    elseif server == 'pyright' then
+        opts.on_attach = on_attach_no_formatting
+    end
+    
     nvim_lsp[server].setup(opts)
     vim.cmd [[ do User LspAttachBuffers ]]
 end

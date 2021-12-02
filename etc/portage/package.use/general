@@ -16,7 +16,7 @@ gui-libs/wlroots seatd
 gui-wm/sway -swaybg seatd tray wallpapers
 media-gfx/graphviz gts svg
 media-libs/freetype harfbuzz png
-media-video/ffmpeg cpudetection libdrm gnutls x264 openh264
+media-video/ffmpeg cpudetection libdrm gnutls openh264 opus sdl vpx x264
 media-video/mpv opengl vaapi -xv
 media-video/pipewire gstreamer ffmpeg pipewire-alsa
 net-firewall/iptables nftables
@@ -50,7 +50,7 @@ x11-libs/gdk-pixbuf jpeg
 sys-apps/busybox -static
 
 # Required by wlroots
-media-libs/mesa gles2 vulkan-overlay
+media-libs/mesa d3d9 gles2 vulkan-overlay zink
 
 # dev-util/itstool depends on dev-libs/libxml2[python]
 dev-libs/libxml2 python
