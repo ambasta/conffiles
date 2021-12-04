@@ -1,7 +1,7 @@
 " True colors for nvim
 set termguicolors
 set encoding=UTF-8
-set tabstop=8 softtabstop=0 expandtab shiftwidth=4 smarttab
+set tabstop=4 softtabstop=0 expandtab shiftwidth=4 smarttab
 
 " tab navigation like firefox
 " Map normal mode
@@ -40,18 +40,9 @@ local luasnip = require('luasnip')
 local on_attach = function(client, bufnr)
   local function buf_set_keymap(...) vim.api.nvim_buf_set_keymap(bufnr, ...) end
   local function buf_set_option(...) vim.api.nvim_buf_set_option(bufnr, ...) end
-  -- local null_ls_formatting_clients = { 'pyright' }
 
   -- Enable completion triggered by <c-x><c-o>
   buf_set_option('omnifunc', 'v:lua.vim.lsp.omnifunc')
-
-  -- for _, value in pairs(null_ls_formatting_clients) do
-  --     if value == client.name then
-  --         client.resolved_capabilities.document_formatting = false
-  --         client.resolved_capabilities.document_range_formatting = false
-  --         break
-  --     end
-  -- end
 
   -- Mappings.
   local opts = { noremap=true, silent=true }
@@ -68,6 +59,11 @@ local on_attach_no_formatting = function(client, bufnr)
     client.resolved_capabilities.document_formatting = false
     client.resolved_capabilities.document_range_formatting = false
     on_attach(client, bufnr)
+end
+
+local has_words_before = function()
+    local line, col = unpack(vim.api.nvim_win_get_cursor(0))
+    return col ~= 0 and vim.api.nvim_buf_get_lines(0, line - 1, line, true)[1]:sub(col, col):match('%s') == nil
 end
 
 --         ["<Tab>"] = cmp.mapping(function(fallback)
@@ -89,17 +85,45 @@ end
 --         end, {"i", "s", "c",}),
 
 cmp.setup({
+    snippet = {
+        expand = function(args)
+            luasnip.lsp_expand(args.body)
+        end
+    },
     mapping = {
         ['<C-Space>'] = cmp.mapping(cmp.mapping.complete(), {'i', 'c'}),
-        ["<Tab>"] = function(fallback)
+        ['<Tab>'] = cmp.mapping(function(fallback)
             if cmp.visible() then
                 cmp.select_next_item()
             elseif luasnip.expand_or_jumpable() then
-                vim.fn.feedkeys(vim.api.nvim_replace_termcodes('<Plug>luasnip-expand-or-jump', true, true, true), '')
+                luasnip.expand_or_jump()
+            elseif has_words_before() then
+                cmp.complete()
             else
-                fallback()
+                local copilot_keys = vim.fn['copilot#Accept']()
+
+                if copilot_keys ~= '' then
+                    vim.api.nvim_feedkeys(copilot_keys, 'i', true)
+                else
+                    fallback()
+                end
             end
-        end,
+        end, {'i', 's'}),
+        ['<S-Tab>'] = cmp.mapping(function(fallback)
+            if cmp.visible() then
+                cmp.select_prev_item()
+            elseif luasnip.jumpable(-1) then
+                luasnip.jump(-1)
+            else
+                local copilot_keys = vim.fn['copilot#Accept']()
+
+                if copilot_keys ~= '' then
+                    vim.api.nvim_feedkeys(copilot_keys, 'i', true)
+                else
+                    fallback()
+                end
+            end
+        end, { 'i', 's' }),
         ['<C-y>'] = cmp.config.disable,
         ['<C-e>'] = cmp.mapping({
             i = cmp.mapping.abort(),
@@ -165,7 +189,6 @@ for _, server in ipairs(servers) do
         opts.cmd = { 'yarn', 'typescript-language-server', '--stdio' }
     elseif server == 'eslint' then
         opts.cmd = { 'yarn', 'vscode-eslint-language-server', "--stdio" }
-        -- opts.formatCommand = { "yarn", "eslint_d", "--fix-to-stdout", "--stdin", "--stdin-filename=${INPUT}" }
     elseif server == 'pyright' then
         opts.on_attach = on_attach_no_formatting
     end
@@ -184,4 +207,5 @@ nvim_lsp['jsonls'].setup({
     }
 })
 
+-- vim.lsp.set_log_level("debug")
 EOF
