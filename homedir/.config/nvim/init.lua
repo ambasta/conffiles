@@ -7,4 +7,4 @@ require('plugins.installer')
 require('plugins.formatters')
 require('plugins.servers')
 
--- vim.lsp.set_log_level('debug')
+vim.lsp.set_log_level('debug')
