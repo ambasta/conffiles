@@ -2,7 +2,7 @@
 vim.opt.termguicolors = true
 
 -- UTF-8 support
-vim.opt.encoding = 'utf-8'
+vim.opt.encoding = "utf-8"
 
 -- Use 2 spaces for tabs
 vim.opt.tabstop = 2
@@ -20,4 +20,4 @@ vim.opt.shiftwidth = 2
 vim.opt.smarttab = true
 
 -- Insert mode completion options
-vim.opt.completeopt = 'menuone,noinsert,noselect'
+vim.opt.completeopt = "menuone,noinsert,noselect"

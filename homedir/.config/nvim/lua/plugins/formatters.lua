@@ -1,14 +1,14 @@
-local handler = require('null-ls')
+local handler = require("null-ls")
 
 handler.config({
-  sources = {
-    handler.builtins.formatting.stylua,
-    handler.builtins.formatting.black,
-  }
+	sources = {
+		handler.builtins.formatting.stylua,
+		handler.builtins.formatting.black,
+	},
 })
 
 local exports = {
-  handler = handler
+	handler = handler,
 }
 
 return exports

@@ -1,7 +1,7 @@
-local handler = require('luasnip')
+local handler = require("luasnip")
 
 local exports = {
-  handler = handler,
+	handler = handler,
 }
 
 return exports
