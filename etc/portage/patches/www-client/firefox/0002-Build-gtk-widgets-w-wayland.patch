@@ -1,0 +1,201 @@
+From 78cb4e9de7d9db3f714a30ca2ce22ff12dd763c0 Mon Sep 17 00:00:00 2001
+From: Amit Prakash Ambasta <amit.prakash.ambasta@gmail.com>
+Date: Wed, 24 Nov 2021 13:46:26 +0530
+Subject: [PATCH 2/2] Build gtk widgets w/ wayland
+
+---
+ gfx/gl/GLContextProvider.h                    | 13 +++++++------
+ gfx/gl/moz.build                              |  2 +-
+ toolkit/components/remote/nsRemoteService.cpp |  9 +++++++--
+ toolkit/xre/nsGDKErrorHandler.cpp             | 13 +++++++++++++
+ widget/CompositorWidget.h                     |  2 +-
+ widget/gtk/components.conf                    |  2 +-
+ widget/gtk/moz.build                          | 12 ++++++++----
+ 7 files changed, 38 insertions(+), 15 deletions(-)
+
+diff --git a/gfx/gl/GLContextProvider.h b/gfx/gl/GLContextProvider.h
+index 12d1a497b9..d30b01c144 100644
+--- a/gfx/gl/GLContextProvider.h
++++ b/gfx/gl/GLContextProvider.h
+@@ -55,17 +55,18 @@ namespace gl {
+ #  define GL_CONTEXT_PROVIDER_NAME GLContextProviderX11
+ #  include "GLContextProviderImpl.h"
+ #  undef GL_CONTEXT_PROVIDER_NAME
+-#  if defined(MOZ_WAYLAND)
+-#    define GL_CONTEXT_PROVIDER_NAME GLContextProviderWayland
+-#    include "GLContextProviderImpl.h"
+-#    undef GL_CONTEXT_PROVIDER_NAME
+-#    define GL_CONTEXT_PROVIDER_DEFAULT GLContextProviderWayland
+-#  endif
+ #  ifndef GL_CONTEXT_PROVIDER_DEFAULT
+ #    define GL_CONTEXT_PROVIDER_DEFAULT GLContextProviderX11
+ #  endif
+ #endif
+ 
++#if defined(MOZ_WAYLAND)
++#  define GL_CONTEXT_PROVIDER_NAME GLContextProviderWayland
++#  include "GLContextProviderImpl.h"
++#  undef GL_CONTEXT_PROVIDER_NAME
++#  define GL_CONTEXT_PROVIDER_DEFAULT GLContextProviderWayland
++#endif
++
+ #ifndef GL_CONTEXT_PROVIDER_DEFAULT
+ #  define GL_CONTEXT_PROVIDER_DEFAULT GLContextProviderEGL
+ #endif
+diff --git a/gfx/gl/moz.build b/gfx/gl/moz.build
+index 7ac6b0753a..a817a6fb08 100644
+--- a/gfx/gl/moz.build
++++ b/gfx/gl/moz.build
+@@ -13,7 +13,7 @@ elif CONFIG["MOZ_WIDGET_TOOLKIT"] == "cocoa":
+ elif CONFIG["MOZ_WIDGET_TOOLKIT"] == "uikit":
+     gl_provider = "EAGL"
+ elif CONFIG["MOZ_WIDGET_TOOLKIT"] == "gtk":
+-    if CONFIG["MOZ_EGL_XRENDER_COMPOSITE"]:
++    if CONFIG["MOZ_EGL_XRENDER_COMPOSITE"] or CONFIG["MOZ_WAYLAND"]:
+         gl_provider = "EGL"
+     else:
+         gl_provider = "GLX"
+diff --git a/toolkit/components/remote/nsRemoteService.cpp b/toolkit/components/remote/nsRemoteService.cpp
+index b2499d8191..f52464bd9b 100644
+--- a/toolkit/components/remote/nsRemoteService.cpp
++++ b/toolkit/components/remote/nsRemoteService.cpp
+@@ -16,8 +16,11 @@
+ #  ifdef MOZ_ENABLE_DBUS
+ #    include "nsDBusRemoteServer.h"
+ #    include "nsDBusRemoteClient.h"
+-#  else
++#  elif defined(MOZ_X11)
+ #    include "nsXRemoteClient.h"
++#  elif defined(MOZ_WAYLAND)
++#    include <gdk/gdkwayland.h>
++#    include "nsRemoteClient.h"
+ #  endif
+ #elif defined(XP_WIN)
+ #  include "nsWinRemoteServer.h"
+@@ -102,8 +105,10 @@ RemoteResult nsRemoteService::StartClient(const char* aDesktopStartupID) {
+ #ifdef MOZ_WIDGET_GTK
+ #  if defined(MOZ_ENABLE_DBUS)
+   client = MakeUnique<nsDBusRemoteClient>();
+-#  else
++#  elif defined(MOZ_X11)
+   client = MakeUnique<nsXRemoteClient>();
++#  else
++  return REMOTE_NOT_FOUND;
+ #  endif
+ #elif defined(XP_WIN)
+   client = MakeUnique<nsWinRemoteClient>();
+diff --git a/toolkit/xre/nsGDKErrorHandler.cpp b/toolkit/xre/nsGDKErrorHandler.cpp
+index 421abdf12f..c19278bf54 100644
+--- a/toolkit/xre/nsGDKErrorHandler.cpp
++++ b/toolkit/xre/nsGDKErrorHandler.cpp
+@@ -6,14 +6,21 @@
+ #include "nsGDKErrorHandler.h"
+ 
+ #include <gtk/gtk.h>
++#ifdef MOZ_X11
+ #include <gdk/gdkx.h>
++#elif defined(MOZ_WAYLAND)
++#include <gdk/gdkwayland.h>
++#endif
+ #include <errno.h>
+ #include <stdlib.h>
+ #include <string.h>
+ 
+ #include "nsDebug.h"
+ #include "nsString.h"
++
++#ifdef MOZ_X11
+ #include "nsX11ErrorHandler.h"
++#endif
+ 
+ #include "prenv.h"
+ 
+@@ -26,6 +33,7 @@
+  */
+ static void GdkErrorHandler(const gchar* log_domain, GLogLevelFlags log_level,
+                             const gchar* message, gpointer user_data) {
++#ifdef MOZ_X11
+   if (strstr(message, "X Window System error")) {
+     XErrorEvent event;
+     nsDependentCString buffer(message);
+@@ -93,9 +101,12 @@ static void GdkErrorHandler(const gchar* log_domain, GLogLevelFlags log_level,
+ 
+     X11Error(event.display, &event);
+   } else {
++#endif
+     g_log_default_handler(log_domain, log_level, message, user_data);
+     MOZ_CRASH_UNSAFE(message);
++#ifdef MOZ_X11
+   }
++#endif
+ }
+ 
+ void InstallGdkErrorHandler() {
+@@ -103,7 +114,9 @@ void InstallGdkErrorHandler() {
+                     (GLogLevelFlags)(G_LOG_LEVEL_ERROR | G_LOG_FLAG_FATAL |
+                                      G_LOG_FLAG_RECURSION),
+                     GdkErrorHandler, nullptr);
++#ifdef MOZ_X11
+   if (PR_GetEnv("MOZ_X_SYNC")) {
+     XSynchronize(GDK_DISPLAY_XDISPLAY(gdk_display_get_default()), X11True);
+   }
++#endif
+ }
+diff --git a/widget/CompositorWidget.h b/widget/CompositorWidget.h
+index 20eb3634f3..10fb94a99f 100644
+--- a/widget/CompositorWidget.h
++++ b/widget/CompositorWidget.h
+@@ -62,7 +62,7 @@ class CompositorWidgetDelegate {
+ };
+ 
+ // Platforms that support out-of-process widgets.
+-#if defined(XP_WIN) || defined(MOZ_X11)
++#if defined(XP_WIN) || defined(MOZ_X11) || defined(MOZ_WAYLAND)
+ // CompositorWidgetParent should implement CompositorWidget and
+ // PCompositorWidgetParent.
+ class CompositorWidgetParent;
+diff --git a/widget/gtk/components.conf b/widget/gtk/components.conf
+index 38c07bd812..a125d8d275 100644
+--- a/widget/gtk/components.conf
++++ b/widget/gtk/components.conf
+@@ -78,7 +78,7 @@ Classes = [
+     },
+ ]
+ 
+-if defined('MOZ_X11'):
++if defined('MOZ_X11') or defined('MOZ_WAYLAND'):
+     Classes += [
+         {
+             'js_name': 'clipboard',
+diff --git a/widget/gtk/moz.build b/widget/gtk/moz.build
+index 291e3a78c8..08d8c1d5a3 100644
+--- a/widget/gtk/moz.build
++++ b/widget/gtk/moz.build
+@@ -101,16 +101,20 @@ if CONFIG["MOZ_WAYLAND"]:
+ 
+ if CONFIG["MOZ_X11"]:
+     UNIFIED_SOURCES += [
+-        "CompositorWidgetChild.cpp",
+-        "CompositorWidgetParent.cpp",
+-        "InProcessGtkCompositorWidget.cpp",
+         "nsClipboardX11.cpp",
+         "nsShmImage.cpp",
+-        "nsUserIdleServiceGTK.cpp",
+         "WindowSurfaceX11.cpp",
+         "WindowSurfaceX11Image.cpp",
+         "WindowSurfaceX11SHM.cpp",
+     ]
++
++if CONFIG["MOZ_WAYLAND"] or CONFIG["MOZ_X11"]:
++    UNIFIED_SOURCES += [
++        "CompositorWidgetChild.cpp",
++        "CompositorWidgetParent.cpp",
++        "InProcessGtkCompositorWidget.cpp",
++        "nsUserIdleServiceGTK.cpp",
++    ]
+     EXPORTS.mozilla.widget += [
+         "CompositorWidgetChild.h",
+         "CompositorWidgetParent.h",
+-- 
+2.34.0
+
