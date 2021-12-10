@@ -1,8 +1,7 @@
 local handler = require("cmp")
 local keymaps = require("common.keymaps")
-local utils = require("common.utils")
+-- local utils = require("common.utils")
 local snippet = require("plugins.snippet")
-local copilot = require("plugins.copilot")
 
 handler.setup({
 	snippet = {
@@ -18,8 +17,10 @@ handler.setup({
 			elseif snippet.handler.expand_or_jumpable() then
 				snippet.handler.expand_or_jump()
 			else
-				if copilot.keys ~= "" then
-					vim.api.nvim_feedkeys(copilot.keys, "i", true)
+				local copilot_keys = vim.fn["copilot#Accept"]()
+
+				if copilot_keys ~= "" then
+					vim.api.nvim_feedkeys(copilot_keys, "i", true)
 				else
 					fallback()
 				end
@@ -31,8 +32,10 @@ handler.setup({
 			elseif snippet.handler.jumpable(-1) then
 				snippet.handler.jump(-1)
 			else
-				if copilot.keys ~= "" then
-					vim.api.nvim_feedkeys(copilot.keys, "i", true)
+				local copilot_keys = vim.fn["copilot#Accept"]()
+
+				if copilot_keys ~= "" then
+					vim.api.nvim_feedkeys(copilot_keys, "i", true)
 				else
 					fallback()
 				end
