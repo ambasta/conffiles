@@ -9,7 +9,6 @@ local servers = {
 	"eslint",
 	"jsonls",
 	"gopls",
-  "null-ls",
 	"pyright",
 	"rls",
 	"tsserver"
