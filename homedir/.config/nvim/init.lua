@@ -1,5 +1,6 @@
 require('common.settings')
 require('common.keymaps')
+require('plugins.treesitter')
 require('plugins.gruvbox')
 require('plugins.copilot')
 require('plugins.complete')
@@ -7,4 +8,4 @@ require('plugins.installer')
 require('plugins.formatters')
 require('plugins.servers')
 
-vim.lsp.set_log_level('debug')
+-- vim.lsp.set_log_level('debug')

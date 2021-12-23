@@ -9,10 +9,10 @@ local servers = {
 	"eslint",
 	"jsonls",
 	"gopls",
+  "null-ls",
 	"pyright",
 	"rls",
-	"tsserver",
-	"null-ls",
+	"tsserver"
 }
 
 for _, server in ipairs(servers) do
@@ -27,13 +27,15 @@ for _, server in ipairs(servers) do
 	if server == "tsserver" then
 		local default_opts = require("lspconfig.server_configurations.tsserver")
 		opts.cmd = vim.list_extend({ "yarn" }, default_opts.default_config.cmd)
+    opts.root_dir = lspconfig_util.root_pattern(".yarn")
 	elseif server == "eslint" then
 		local default_opts = require("lspconfig.server_configurations.eslint")
 		opts.cmd = vim.list_extend({ "yarn" }, default_opts.default_config.cmd)
+    opts.root_dir = lspconfig_util.root_pattern(".yarn")
 	elseif server == "jsonls" then
 		local default_opts = require("lspconfig.server_configurations.jsonls")
 		opts.cmd = vim.list_extend({ "yarn" }, default_opts.default_config.cmd)
-		opts.root_dir = lspconfig_util.root_pattern("package.json")
+		opts.root_dir = lspconfig_util.root_pattern(".yarn")
 	elseif server == "pyright" then
 		opts.on_attach = utils.on_attach_noformat
 	elseif server == "jsonls" then

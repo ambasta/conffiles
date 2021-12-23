@@ -9,6 +9,7 @@ dev-lang/rust-bin rustfmt rls
 dev-lang/spidermonkey clang -system-icu
 dev-lang/python sqlite
 dev-libs/boost -mpi
+dev-libs/tree-sitter ts-cli
 dev-python/pygobject cairo
 dev-vcs/git -iconv -webdav
 gui-apps/waybar network popups tray

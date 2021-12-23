@@ -5,7 +5,7 @@ local has_words_before = function()
 	return column ~= 0 and vim.api.nvim_buf_get_lines(0, line - 1, line, true)[1]:sub(column, column):match("%s") == nil
 end
 
-local on_attach = function(_, bufnr)
+local on_attach = function(client, bufnr)
 	local function buf_set_keymap(...)
 		vim.api.nvim_buf_set_keymap(bufnr, ...)
 	end
@@ -18,6 +18,13 @@ local on_attach = function(_, bufnr)
 		noremap = true,
 		silent = true,
 	}
+
+  if client.name == 'tsserver' then
+    client.resolved_capabilities.document_formatting = false
+    client.resolved_capabilities.document_range_formatting = false
+  elseif client.name == 'eslint' then
+    client.resolved_capabilities.document_formatting = true
+  end
 
 	buf_set_option("omnifunc", "v:lua.vim.lsp.omnifunc")
 	buf_set_keymap("n", "gD", "<cmd>lua vim.lsp.buf.declaration()<CR>", opts)

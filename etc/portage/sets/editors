@@ -1,2 +1,4 @@
 app-editors/neovim
+dev-libs/tree-sitter
+dev-lua/StyLua
 dev-python/pynvim
