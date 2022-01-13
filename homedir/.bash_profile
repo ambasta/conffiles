@@ -12,7 +12,7 @@ alias chrome='google-chrome-stable --ozone-platform=wayland --enable-features=Us
 # eval $(gnome-keyring-daemon --start --components=gpg,pkcs11,secrets,ssh)
 # export $(gnome-keyring-daemon --start --components=pkcs11,secrets,ssh,gpg)
 
-# export PATH="$PATH:$(yarn global bin):$HOME/.local/bin/"
+export PATH="$PATH:$HOME/.local/bin/"
 
 source $HOME/.config/environment.d/00-envvars.conf
 source $HOME/.config/environment.d/01-wayland.conf

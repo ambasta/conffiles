@@ -1,25 +1,19 @@
-From 58a10b91ae2f82a101e2580982a45775b22aa68b Mon Sep 17 00:00:00 2001
+From 624c8bd742f47865923e9464f8eeb2cf31e7b4da Mon Sep 17 00:00:00 2001
 From: Amit Prakash Ambasta <amit.prakash.ambasta@gmail.com>
-Date: Sat, 25 Dec 2021 12:50:51 +0530
-Subject: [PATCH] Update kernel makefile to use ambasta as extraver
+Date: Thu, 30 Dec 2021 09:38:37 +0530
+Subject: [PATCH] Updated extraver
 
 ---
  Makefile | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/Makefile b/Makefile
-index cfb16ee47..2dae045d0 100644
+index 08561a7..6e49eff 100644
 --- a/Makefile
 +++ b/Makefile
-@@ -2,7 +2,7 @@
- VERSION = 5
- PATCHLEVEL = 15
- SUBLEVEL = 11
+@@ -5 +5 @@ SUBLEVEL = 12
 -EXTRAVERSION = -gentoo
 +EXTRAVERSION = -ambasta
- NAME = Trick or Treat
- 
- # *DOCUMENTATION*
 -- 
 2.34.1
 

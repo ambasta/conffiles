@@ -4,7 +4,7 @@ dev-cpp/concurrentqueue
 dev-cpp/nlohmann_json
 dev-cpp/range-v3
 dev-cpp/readerwriterqueue
-dev-cpp/oneTBB
+dev-cpp/tbb
 dev-libs/boost
 dev-libs/cppkafka
 dev-libs/libfmt

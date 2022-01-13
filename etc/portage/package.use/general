@@ -2,9 +2,9 @@
 app-crypt/pinentry gtk
 app-editors/vim python terminal
 app-emulation/podman fuse
-app-emulation/docker -cli
+app-containers/docker cli
 dev-java/openjdk-bin -webstart
-dev-lang/rust system-bootstrap system-llvm wasm
+dev-lang/rust rls rustfmt rust-src system-bootstrap system-llvm wasm
 dev-lang/rust-bin rustfmt rls
 dev-lang/spidermonkey clang -system-icu
 dev-lang/python sqlite

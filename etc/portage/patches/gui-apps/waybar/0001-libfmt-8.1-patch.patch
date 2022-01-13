@@ -1,0 +1,27 @@
+From bd41da8dc6bb186158b1e757ca79b4e25b353fcf Mon Sep 17 00:00:00 2001
+From: Amit Prakash Ambasta <amit.prakash.ambasta@gmail.com>
+Date: Sat, 8 Jan 2022 12:00:36 +0530
+Subject: [PATCH] libfmt-8.1 patch
+
+---
+ src/modules/clock.cpp | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)
+
+diff --git a/src/modules/clock.cpp b/src/modules/clock.cpp
+index 7e7d742..a11f946 100644
+--- a/src/modules/clock.cpp
++++ b/src/modules/clock.cpp
+@@ -232,9 +232,6 @@ template <>
+ struct fmt::formatter<waybar_time> : fmt::formatter<std::tm> {
+   template <typename FormatContext>
+   auto format(const waybar_time& t, FormatContext& ctx) {
+-#if FMT_VERSION >= 80000
+-	auto& tm_format = specs;
+-#endif
+-    return format_to(ctx.out(), "{}", date::format(t.locale, fmt::to_string(tm_format), t.ztime));
++    return fmt::formatter<std::tm>::format((const std::tm&)t, ctx);
+   }
+ };
+-- 
+2.34.1
+
