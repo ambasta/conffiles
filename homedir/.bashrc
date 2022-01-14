@@ -8,7 +8,8 @@ alias awsauth='source /home/amitprakash/.virtualenvs/aws/bin/activate'
 alias pyshell='source /home/amitprakash/.virtualenvs/pyshell/bin/activate'
 alias chrome='/home/amitprakash/chrome/chrome --ozone-platform=wayland --enable-features=UseOzonePlatform'
 
-eval $(gnome-keyring-daemon --start)
+# eval $(gnome-keyring-daemon --start)
+eval $(gnome-keyring-daemon --start --components=pkcs11,secrets,ssh)
 export SSH_AUTH_SOCK
 # export PATH="$PATH:$(yarn global bin):$N_PREFIX/bin"
 
