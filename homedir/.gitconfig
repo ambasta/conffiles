@@ -1,6 +1,7 @@
 [user]
 	email = amit.prakash.ambasta@gmail.com
 	name = Amit Prakash Ambasta
+	signingkey = F4ED5371C992A1D4C487C307F0B27A3B6D7CF774
 [commit]
 	gpgSign = true
 	template = ~/.gitmessage
@@ -15,3 +16,5 @@
 	defaultBranch = master
 [gpg]
 	program = gpg2
+[format]
+	signoff = true

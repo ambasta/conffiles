@@ -4,7 +4,8 @@ export XDG_CONFIG_HOME=$HOME/.config
 export XDG_CACHE_HOME=$HOME/.cache
 export _JAVA_AWT_WM_NONREPARENTING=1
 
-alias awsauth='source /home/amitprakash/.virtualenvs/aws/bin/activate'
+alias awsauth='source /home/amitprakash/.virtualenvs/awsauth/bin/activate'
+alias awsshell='source /home/amitprakash/.virtualenvs/awsshell/bin/activate'
 alias pyshell='source /home/amitprakash/.virtualenvs/pyshell/bin/activate'
 alias chrome='/home/amitprakash/chrome/chrome --ozone-platform=wayland --enable-features=UseOzonePlatform'
 
