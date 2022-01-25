@@ -12,3 +12,4 @@ export NO_AT_BRIDGE=1
 export SDL_VIDEODRIVER=wayland
 export VDPAU_DRIVER=radeonsi
 export XKB_DEFAULT_LAYOUT=us
+export WLR_RENDERER=vulkan
