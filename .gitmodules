@@ -34,6 +34,3 @@
 [submodule "homedir/.config/nvim/pack/syntax/start/nvim-treesitter"]
 	path = homedir/.config/nvim/pack/syntax/start/nvim-treesitter
 	url = https://github.com/nvim-treesitter/nvim-treesitter.git
-[submodule "homedir/.config/nvim/pack/lsp/start/nvim-jdtls"]
-	path = homedir/.config/nvim/pack/lsp/start/nvim-jdtls
-	url = https://github.com/mfussenegger/nvim-jdtls.git
