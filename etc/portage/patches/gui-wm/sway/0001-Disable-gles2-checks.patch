@@ -1,0 +1,52 @@
+From 6ecbfe25d3c6a96ffa78bb2252a447fafe9e0100 Mon Sep 17 00:00:00 2001
+From: Amit Prakash Ambasta <amit.prakash.ambasta@gmail.com>
+Date: Wed, 9 Feb 2022 13:17:41 +0530
+Subject: [PATCH] Disable gles2 checks
+
+Signed-off-by: Amit Prakash Ambasta <amit.prakash.ambasta@gmail.com>
+---
+ sway/desktop/render.c | 20 --------------------
+ 1 file changed, 20 deletions(-)
+
+diff --git a/sway/desktop/render.c b/sway/desktop/render.c
+index c088c93..c78c24b 100644
+--- a/sway/desktop/render.c
++++ b/sway/desktop/render.c
+@@ -5,7 +5,6 @@
+ #include <strings.h>
+ #include <time.h>
+ #include <wayland-server-core.h>
+-#include <wlr/render/gles2.h>
+ #include <wlr/render/wlr_renderer.h>
+ #include <wlr/types/wlr_buffer.h>
+ #include <wlr/types/wlr_matrix.h>
+@@ -74,26 +73,7 @@ static void scissor_output(struct wlr_output *wlr_output,
+ 
+ static void set_scale_filter(struct wlr_output *wlr_output,
+ 		struct wlr_texture *texture, enum scale_filter_mode scale_filter) {
+-	if (!wlr_texture_is_gles2(texture)) {
+ 		return;
+-	}
+-
+-	struct wlr_gles2_texture_attribs attribs;
+-	wlr_gles2_texture_get_attribs(texture, &attribs);
+-
+-	glBindTexture(attribs.target, attribs.tex);
+-
+-	switch (scale_filter) {
+-	case SCALE_FILTER_LINEAR:
+-		glTexParameteri(attribs.target, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+-		break;
+-	case SCALE_FILTER_NEAREST:
+-		glTexParameteri(attribs.target, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+-		break;
+-	case SCALE_FILTER_DEFAULT:
+-	case SCALE_FILTER_SMART:
+-		assert(false); // unreachable
+-	}
+ }
+ 
+ static void render_texture(struct wlr_output *wlr_output,
+-- 
+2.35.1
+

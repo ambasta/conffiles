@@ -12,8 +12,20 @@ local servers = {
 	"gopls",
 	"pyright",
 	"rls",
-	"tsserver"
+	"tsserver",
+  "jdtls"
 }
+
+function GetFileMatchingPattern(search_dir, pattern)
+  local files = vim.fn.glob(search_dir .. "/**/" .. pattern, false, true)
+
+  if vim.tbl_isempty(files) then
+    error("Searched files: " .. search_dir .. "/**/" .. pattern .. " : " .. vim.inspect(files))
+    error("No files found matching pattern: " .. pattern)
+  end
+
+  return files[1]
+end
 
 for _, server in ipairs(servers) do
 	local opts = {
@@ -27,19 +39,18 @@ for _, server in ipairs(servers) do
 	if server == "tsserver" then
 		local default_opts = require("lspconfig.server_configurations.tsserver")
 		opts.cmd = vim.list_extend({ "yarn" }, default_opts.default_config.cmd)
-    opts.root_dir = lspconfig_util.root_pattern(".yarn")
+    opts.root_dir = lspconfig_util.root_pattern({".yarn", "node_modules"})
 	elseif server == "eslint" then
 		local default_opts = require("lspconfig.server_configurations.eslint")
 		opts.cmd = vim.list_extend({ "yarn" }, default_opts.default_config.cmd)
-    opts.root_dir = lspconfig_util.root_pattern(".yarn")
+    opts.root_dir = lspconfig_util.root_pattern({".yarn", "node_modules"})
 	elseif server == "jsonls" then
 		local default_opts = require("lspconfig.server_configurations.jsonls")
 		opts.cmd = vim.list_extend({ "yarn" }, default_opts.default_config.cmd)
-		opts.root_dir = lspconfig_util.root_pattern(".yarn")
+    opts.root_dir = lspconfig_util.root_pattern({".yarn", "node_modules"})
 	elseif server == "angularls" then
 		local default_opts = require("lspconfig.server_configurations.angularls")
     local cmd = {"yarn", "ngserver", "--stdio", "--tsProbeLocations", "./", "--ngProbeLocations", "./"}
-    -- opts.cmd = vim.list_extend({ "yarn" }, default_opts.default_config.cmd)
     opts.cmd = cmd
 		opts.root_dir = lspconfig_util.root_pattern("angular.json")
     opts.on_new_config = function(new_config, new_root_dir)
@@ -55,6 +66,68 @@ for _, server in ipairs(servers) do
 				end,
 			},
 		}
+  elseif server == "jdtls" then
+    local root_dir = lspconfig_util.root_pattern({".git", "mvnw", "gradlew", "pom.xml"})
+    local home = os.getenv('HOME')
+    local workspace_dir = home .. "/.workspace/"
+    local lombok = GetFileMatchingPattern(home  .. "/.local/opt", "lombok-*.jar");
+    local equinox = GetFileMatchingPattern(home .. "/.local/opt", "org.eclipse.equinox.launcher_*.jar");
+    local configdir = GetFileMatchingPattern(home .. "/.local/opt", "config_linux")
+
+    opts.cmd = {
+      'java',
+      '-Declipse.application=org.eclipse.jdt.ls.core.id1',
+      '-Dosgi.bundles.defaultStartLevel=4',
+      '-Declipse.product=org.eclipse.jdt.ls.core.product',
+      '-Dlog.protocol=true',
+      '-Dlog.level=ALL',
+      '-javaagent:'.. lombok,
+      '-Xms1g',
+      '-Xmx2G',
+      '-jar',
+      equinox,
+      '-configuration',
+      configdir,
+      '--add-modules=ALL-SYSTEM',
+      '--add-opens',
+      'java.base/java.util=ALL-UNNAMED',
+      '--add-opens',
+      'java.base/java.lang=ALL-UNNAMED',
+      '-data',
+      workspace_dir,
+    }
+    opts.flags = {
+      allow_incremental_sync = true,
+    }
+    opts.capabilities.workspace.configuration = true
+    opts.capabilities.textDocument = {
+      completion = {
+        completionItem = {
+          snippetSupport = true
+        }
+      }
+    }
+    opts.root_dir = root_dir
+    opts.settings = {
+      java = {
+        format = {
+          settings = {
+            url = "https://raw.githubusercontent.com/google/styleguide/gh-pages/eclipse-java-google-style.xml"
+          }
+        },
+        sources = {
+          organizeImports = {
+            starThreshold = 9999;
+            staticStarThreshold = 9999;
+          }
+        },
+        codeGeneration = {
+          toString = {
+            template = "$(object.className}{${member.name()}=${member.value}, ${otherMembers}}"
+          }
+        }
+      }
+    }
 	end
 
 	handler[server].setup(opts)
