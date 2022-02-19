@@ -110,6 +110,12 @@ for _, server in ipairs(servers) do
     opts.root_dir = root_dir
     opts.settings = {
       java = {
+        autobuild = {
+          enabled = true
+        },
+        import = {
+          generatesMetadataFilesAtProjectRoot = true
+        },
         format = {
           settings = {
             url = "https://raw.githubusercontent.com/google/styleguide/gh-pages/eclipse-java-google-style.xml"
@@ -125,6 +131,12 @@ for _, server in ipairs(servers) do
           toString = {
             template = "$(object.className}{${member.name()}=${member.value}, ${otherMembers}}"
           }
+        },
+        saveActions = {
+          organizeImports = true
+        },
+        trace = {
+          server = "verbose"
         }
       }
     }
