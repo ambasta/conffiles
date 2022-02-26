@@ -4,6 +4,7 @@ app-editors/vim python terminal
 app-emulation/podman fuse
 app-containers/docker cli
 dev-java/openjdk-bin -webstart
+dev-java/openjdk gentoo-vm
 dev-lang/rust rls rustfmt rust-src system-bootstrap system-llvm wasm
 dev-lang/rust-bin rustfmt rls
 dev-lang/spidermonkey clang -system-icu
@@ -21,7 +22,8 @@ media-video/ffmpeg cpudetection libdrm gnutls openh264 opus sdl vpx x264
 media-video/mpv opengl vaapi -xv
 media-video/pipewire gstreamer ffmpeg pipewire-alsa
 net-firewall/iptables nftables
-net-libs/nodejs icu system-icu inspector -npm -snapshot
+# Disable LTO for gcc-11 & nodejs
+net-libs/nodejs icu system-icu inspector -npm -snapshot -lto
 net-misc/networkmanager -bluetooth -ppp -dhclient -nss gnutls iwd
 net-misc/ofono -atmodem -cdmamodem -isimodem -phonesim -qmimodem -provision
 net-p2p/transmission gtk
@@ -31,7 +33,7 @@ sys-apps/dbus user-session
 sys-apps/portage gentoo-dev -rsync-verify
 sys-apps/systemd audit curl gnuefi importd nat xkb
 sys-apps/xdg-desktop-portal screencast
-sys-devel/gcc -go graphite lto
+sys-devel/gcc -go graphite
 sys-devel/llvm -doc libedit
 sys-libs/glibc -multiarch
 sys-kernel/gentoo-sources experimental symlink
