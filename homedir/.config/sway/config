@@ -19,6 +19,12 @@ set $term foot
 # bindsym $mod+d exec kitty --name=launcher -- /bin/bash -c 'compgen -c | sort -u | xargs -r swaymsg -t command exec'
 # for_window [app_id="^launcher$"] floating enable, border none
 
+#
+# Firefox sharing indicator
+#
+for_window [title="Firefox — Sharing Indicator"] floating enable, kill
+
+
 set $menu bemenu-run
 set $browser firefox-bin
 set $lockscreen swaylock
