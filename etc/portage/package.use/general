@@ -44,6 +44,9 @@ www-client/firefox clang gmp-autoupdate mold system-harfbuzz system-icu system-j
 x11-libs/libdrm video_cards_radeon
 x11-terms/gnome-terminal -nautilus -browser-extension -gnome-shell
 
+# Required by dev-cpp/folly pulled by dev-util/watchman
+dev-libs/boost context
+
 # Requierd by sway
 x11-libs/gdk-pixbuf jpeg
 
