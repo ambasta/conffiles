@@ -9,5 +9,4 @@ gui-apps/wl-clipboard
 gui-apps/wlgreet
 gui-libs/xdg-desktop-portal-wlr
 gui-wm/sway[tray,wallpapers]
-net-irc/srain
 sys-apps/brightnessctl

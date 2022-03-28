@@ -1,8 +1,12 @@
+*/* PYTHON_TARGETS: -* python3_10
+*/* PYTHON_SINGLE_TARGET: -* python3_10
+
 # Features I want myself
 app-crypt/pinentry gtk
 app-editors/vim python terminal
 app-emulation/podman fuse
 app-containers/docker cli
+dev-db/postgresql llvm python threads uuid
 dev-java/openjdk-bin -webstart
 dev-java/openjdk gentoo-vm
 dev-lang/rust rls rustfmt rust-src system-bootstrap system-llvm wasm
@@ -34,6 +38,8 @@ sys-apps/dbus user-session
 sys-apps/portage gentoo-dev -rsync-verify
 sys-apps/systemd audit curl gnuefi importd nat xkb
 sys-apps/xdg-desktop-portal screencast
+sys-devel/clang default-compiler-rt default-libcxx
+sys-devel/clang-runtime libcxx
 sys-devel/gcc -go graphite
 sys-devel/llvm -doc libedit
 sys-libs/glibc -multiarch
@@ -43,6 +49,9 @@ virtual/rust rustfmt
 www-client/firefox clang gmp-autoupdate mold system-harfbuzz system-icu system-jpeg system-libevent system-libvpx system-png system-sqlite screenshot screencast
 x11-libs/libdrm video_cards_radeon
 x11-terms/gnome-terminal -nautilus -browser-extension -gnome-shell
+
+# Required by common dep net-libs/glib-networking
+net-libs/gnutls pkcs11
 
 # Required by dev-cpp/folly pulled by dev-util/watchman
 dev-libs/boost context
@@ -69,7 +78,6 @@ app-text/xmlto text
 media-libs/libpng apng
 media-libs/libvpx postproc
 # dev-db/sqlite secure-delete
-# sys-devel/llvm gold
 
 # Required by sci-libs/or-tools
 dev-cpp/glog gflags
