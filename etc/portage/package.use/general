@@ -22,6 +22,7 @@ gui-libs/wlroots seatd
 gui-wm/sway -swaybg seatd tray wallpapers
 media-gfx/graphviz gts svg
 media-libs/freetype harfbuzz png
+media-libs/libaom -examples
 media-libs/vulkan-loader layers
 media-video/ffmpeg cpudetection libdrm gnutls openh264 opus sdl vpx x264
 media-video/mpv opengl vaapi -xv

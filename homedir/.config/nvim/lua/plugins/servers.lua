@@ -8,6 +8,7 @@ local servers = {
   "clangd",
   "cmake",
   "eslint",
+  "jdtls",
   "jsonls",
   "gopls",
   "pyright",
