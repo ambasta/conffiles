@@ -18,3 +18,5 @@
 	program = gpg2
 [format]
 	signoff = true
+[rerere]
+	enabled = true
