@@ -29,7 +29,7 @@ media-video/mpv opengl vaapi -xv
 media-video/pipewire gstreamer ffmpeg pipewire-alsa
 net-firewall/iptables nftables
 # Disable LTO for gcc-11 & nodejs
-net-libs/nodejs icu system-icu inspector -npm -snapshot -lto
+net-libs/nodejs icu system-icu inspector -npm -snapshot lto
 net-misc/networkmanager -bluetooth -ppp -dhclient -nss gnutls iwd
 net-misc/ofono -atmodem -cdmamodem -isimodem -phonesim -qmimodem -provision
 net-p2p/transmission gtk
