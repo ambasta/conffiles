@@ -28,8 +28,7 @@ media-video/ffmpeg cpudetection libdrm gnutls openh264 opus sdl vpx x264
 media-video/mpv opengl vaapi -xv
 media-video/pipewire gstreamer ffmpeg pipewire-alsa
 net-firewall/iptables nftables
-# Disable LTO for gcc-11 & nodejs
-net-libs/nodejs icu system-icu inspector -npm -snapshot lto
+net-libs/nodejs icu system-icu inspector -npm -snapshot
 net-misc/networkmanager -bluetooth -ppp -dhclient -nss gnutls iwd
 net-misc/ofono -atmodem -cdmamodem -isimodem -phonesim -qmimodem -provision
 net-p2p/transmission gtk
@@ -67,7 +66,8 @@ x11-libs/gdk-pixbuf jpeg
 sys-apps/busybox -static
 
 # Required by wlroots
-media-libs/mesa d3d9 gles2 vulkan-overlay zink
+# Disable zink since it pulls in X11/xcb
+media-libs/mesa d3d9 gles2 vulkan-overlay -zink
 
 # dev-util/itstool depends on dev-libs/libxml2[python]
 dev-libs/libxml2 python
