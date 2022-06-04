@@ -46,7 +46,7 @@ sys-libs/glibc -multiarch
 sys-kernel/gentoo-sources experimental symlink
 sys-kernel/linux-firmware savedconfig
 virtual/rust rustfmt
-www-client/firefox clang gmp-autoupdate mold system-harfbuzz system-icu system-jpeg system-libevent system-libvpx system-png system-sqlite screenshot screencast
+www-client/firefox clang gmp-autoupdate mold pulseaudio system-harfbuzz system-icu system-jpeg system-libevent system-libvpx system-png system-sqlite screenshot screencast
 x11-libs/libdrm video_cards_radeon
 x11-terms/gnome-terminal -nautilus -browser-extension -gnome-shell
 
