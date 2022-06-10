@@ -1,0 +1,7 @@
+CompileFlags:
+  Add: [-std=c++2b, -Wall, -Wno-missing-prototypes]
+Diagnostics:
+  ClangTidy:
+    Add: [performance*, modernize*, readability*]
+    CheckOptions:
+      readability-identifier-naming.VariableCase: CamelCase
