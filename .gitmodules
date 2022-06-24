@@ -1,6 +1,3 @@
-[submodule "homedir/.config/nvim/pack/codegen/start/copilot.vim"]
-	path = homedir/.config/nvim/pack/codegen/start/copilot.vim
-	url = https://github.com/github/copilot.vim.git
 [submodule "homedir/.config/nvim/pack/syntax/start/gentoo-syntax"]
 	path = homedir/.config/nvim/pack/syntax/start/gentoo-syntax
 	url = https://github.com/gentoo/gentoo-syntax.git
