@@ -4,4 +4,4 @@ Diagnostics:
   ClangTidy:
     Add: [performance*, modernize*, readability*]
     CheckOptions:
-      readability-identifier-naming.VariableCase: CamelCase
+      readability-identifier-naming.VariableCase: camelBack
