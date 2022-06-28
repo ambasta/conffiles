@@ -27,7 +27,7 @@ media-libs/vulkan-loader layers
 media-sound/pulseaudio -daemon
 media-video/ffmpeg cpudetection libdrm gnutls openh264 opus sdl vpx x264
 media-video/mpv opengl vaapi -xv
-media-video/pipewire gstreamer ffmpeg pipewire-alsa
+media-video/pipewire bluetooth gstreamer ffmpeg pipewire-alsa
 net-firewall/iptables nftables
 net-libs/nodejs icu system-icu inspector -npm -snapshot
 net-misc/networkmanager -bluetooth -ppp -dhclient -nss gnutls iwd
