@@ -4,4 +4,14 @@ Diagnostics:
   ClangTidy:
     Add: [performance*, modernize*, readability*]
     CheckOptions:
-      readability-identifier-naming.VariableCase: camelBack
+      - { key: readability-identifier-naming.VariableCase,        value: camelBack  }
+      - { key: readability-identifier-naming.PublicMethodCase,    value: lower_case }
+      - { key: readability-identifier-naming.NamespaceCase,       value: lower_case }
+      - { key: readability-identifier-naming.ClassCase,           value: CamelCase  }
+      - { key: readability-identifier-naming.PrivateMemberPrefix, value: m          }
+      - { key: readability-identifier-naming.StructCase,          value: CamelCase  }
+      - { key: readability-identifier-naming.FunctionCase,        value: lower_case }
+      - { key: readability-identifier-naming.GlobalConstantCase,  value: UPPER_CASE }
+      - { key: readability-identifier-naming.StaticConstant,      value: UPPER_CASE }
+
+
