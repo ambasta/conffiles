@@ -70,6 +70,14 @@ for _, server in ipairs(servers) do
         end,
       },
     }
+  elseif server == "rls" then
+    opts.settings = {
+      rust = {
+        unstable_features = true,
+        build_on_save = false,
+        all_features = true,
+      }
+    }
   elseif server == "jdtls" then
     local root_dir = lspconfig_util.root_pattern({".git", "mvnw", "gradlew", "pom.xml"})
     local home = os.getenv('HOME')

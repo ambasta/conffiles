@@ -19,7 +19,7 @@ dev-python/pygobject cairo
 dev-vcs/git -iconv -webdav
 gui-apps/waybar network popups tray
 gui-libs/wlroots seatd
-gui-wm/sway -swaybg seatd tray wallpapers
+gui-wm/sway -swaybg seatd tray -wallpapers
 media-gfx/graphviz gts svg
 media-libs/freetype harfbuzz png
 media-libs/libaom -examples
@@ -27,7 +27,7 @@ media-libs/vulkan-loader layers
 media-sound/pulseaudio -daemon
 media-video/ffmpeg cpudetection libdrm gnutls openh264 opus sdl vpx x264
 media-video/mpv opengl vaapi -xv
-media-video/pipewire bluetooth gstreamer ffmpeg pipewire-alsa
+media-video/pipewire bluetooth gstreamer ffmpeg pipewire-alsa sound-server
 net-firewall/iptables nftables
 net-libs/nodejs icu system-icu inspector -npm -snapshot
 net-misc/networkmanager -bluetooth -ppp -dhclient -nss gnutls iwd
@@ -47,7 +47,7 @@ sys-libs/glibc -multiarch
 sys-kernel/gentoo-sources experimental symlink
 sys-kernel/linux-firmware savedconfig
 virtual/rust rustfmt
-www-client/firefox clang gmp-autoupdate mold pulseaudio system-harfbuzz system-icu system-jpeg system-libevent system-libvpx system-png system-sqlite screenshot screencast
+www-client/firefox clang gmp-autoupdate mold pulseaudio -pgo system-harfbuzz system-icu system-jpeg system-libevent system-libvpx system-png system-sqlite screenshot screencast
 x11-libs/libdrm video_cards_radeon
 x11-terms/gnome-terminal -nautilus -browser-extension -gnome-shell
 
