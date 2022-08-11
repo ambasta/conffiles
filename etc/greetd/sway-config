@@ -1,4 +1,5 @@
 exec "wlgreet --command sway-run.sh; swaymsg exit"
+# exec "gtkgreet -l; swaymsg exit"
 
 bindsym Mod4+shift+e exec swaynag \
 	-t warning \
