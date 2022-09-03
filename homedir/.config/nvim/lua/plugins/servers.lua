@@ -83,7 +83,8 @@ for _, server in ipairs(servers) do
     local root_dir = lspconfig_util.root_pattern({".git", "mvnw", "gradlew", "pom.xml"})
     local home = os.getenv('HOME')
     local workspace_dir = home .. "/.workspace/"
-    local lombok = GetFileMatchingPattern(home  .. "/.local/opt", "lombok-*.jar");
+    -- local jdls = GetFileMatchingPattern(home .. "/.local/opt", "jdt-language-server-*.jar")
+    -- local lombok = GetFileMatchingPattern(home  .. "/.local/opt", "lombok-*.jar");
     local equinox = GetFileMatchingPattern(home .. "/.local/opt", "org.eclipse.equinox.launcher_*.jar");
     local configdir = GetFileMatchingPattern(home .. "/.local/opt", "config_linux")
 
@@ -94,10 +95,11 @@ for _, server in ipairs(servers) do
       '-Declipse.product=org.eclipse.jdt.ls.core.product',
       '-Dlog.protocol=true',
       '-Dlog.level=ALL',
-      '-javaagent:'.. lombok,
+      -- '-javaagent:'.. lombok,
       '-Xms1g',
       '-Xmx2G',
       '-jar',
+      -- jdls,
       equinox,
       '-configuration',
       configdir,
