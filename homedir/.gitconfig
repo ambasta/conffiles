@@ -13,7 +13,7 @@
 [color]
 	ui = auto
 [init]
-	defaultBranch = master
+	defaultBranch = main
 [gpg]
 	program = gpg2
 [format]

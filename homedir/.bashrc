@@ -1,14 +1,15 @@
 # export XDG_CONFIG_HOME=$HOME/.config
 # export XDG_CACHE_HOME=$HOME/.cache
 
+export PATH=$PATH:/home/amitprakash/.local/bin
 alias awsauth='source /home/amitprakash/.virtualenvs/awsauth/bin/activate'
 alias awsshell='source /home/amitprakash/.virtualenvs/awsshell/bin/activate'
 alias pyshell='source /home/amitprakash/.virtualenvs/pyshell/bin/activate'
 
 # Default components are loaded directly
 # Default components are: pkcs11, secrets, ssh
-# eval $(gnome-keyring-daemon --start)
-# export SSH_AUTH_SOCK
+eval $(gnome-keyring-daemon --start)
+export SSH_AUTH_SOCK
 
 # source $HOME/.config/environment.d/00-envvars.conf
 # source $HOME/.config/environment.d/01-wayland.conf

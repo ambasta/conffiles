@@ -9,7 +9,7 @@ app-containers/docker cli
 dev-db/postgresql llvm python threads uuid
 dev-java/openjdk-bin -webstart
 dev-java/openjdk gentoo-vm
-dev-lang/rust rls rustfmt rust-src system-bootstrap system-llvm wasm
+dev-lang/rust rls rustfmt rust-src system-bootstrap system-llvm
 dev-lang/rust-bin rustfmt rls
 dev-lang/spidermonkey clang -system-icu
 dev-lang/python sqlite
