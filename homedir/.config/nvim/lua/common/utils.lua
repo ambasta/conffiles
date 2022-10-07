@@ -5,6 +5,21 @@ local has_words_before = function()
 	return column ~= 0 and vim.api.nvim_buf_get_lines(0, line - 1, line, true)[1]:sub(column, column):match("%s") == nil
 end
 
+local augroup = vim.api.nvim_create_augroup("LspFormatting", {})
+
+local lsp_formatting = function(bufnr)
+	vim.lsp.buf.format({
+		-- filter = function(client)
+		-- return client.name == "eslint"
+		-- end,
+		bufnr = bufnr,
+	})
+end
+
+local format_sync = function()
+	vim.lsp.buf.format({ async = false })
+end
+
 local on_attach = function(client, bufnr)
 	local function buf_set_keymap(...)
 		vim.api.nvim_buf_set_keymap(bufnr, ...)
@@ -17,32 +32,40 @@ local on_attach = function(client, bufnr)
 	local opts = {
 		noremap = true,
 		silent = true,
+		buffer = bufnr,
 	}
 
-  if client.name == 'tsserver' then
-    client.resolved_capabilities.document_formatting = false
-    client.resolved_capabilities.document_range_formatting = false
-  elseif client.name == 'eslint' then
-    client.resolved_capabilities.document_formatting = true
-  end
+	if client.supports_method("textDocument/formatting") then
+		vim.api.nvim_clear_autocmds({ group = augroup, buffer = bufnr })
+		vim.api.nvim_create_autocmd("BufWritePre", {
+			group = augroup,
+			buffer = bufnr,
+			callback = function()
+				vim.lsp.buf.format({ bufnr = bufnr })
+				-- lsp_formatting(bufnr)
+			end,
+		})
+	end
+
+	if client.name == "tsserver" then
+		client.server_capabilities.document_formatting = true
+		client.server_capabilities.document_range_formatting = true
+	elseif client.name == "eslint" then
+		client.server_capabilities.document_formatting = true
+	end
 
 	buf_set_option("omnifunc", "v:lua.vim.lsp.omnifunc")
-	buf_set_keymap("n", "gD", "<cmd>lua vim.lsp.buf.declaration()<CR>", opts)
-	buf_set_keymap("n", "gd", "<cmd>lua vim.lsp.buf.definition()<CR>", opts)
-	buf_set_keymap("n", "gi", "<cmd>lua vim.lsp.buf.implementation()<CR>", opts)
-	buf_set_keymap("n", "<space>rn", "<cmd>lua vim.lsp.buf.rename()<CR>", opts)
-	buf_set_keymap("n", "<C-f>", "<cmd>lua vim.lsp.buf.formatting()<CR>", opts)
-end
 
-local on_attach_noformat = function(client, bufnr)
-	on_attach(client, bufnr)
-	client.resolved_capabilities.document_formatting = false
-	client.resolved_capabilities.document_range_formatting = false
+	vim.keymap.set("n", "gD", vim.lsp.buf.declaration, opts)
+	vim.keymap.set("n", "gd", vim.lsp.buf.definition, opts)
+	vim.keymap.set("n", "gi", vim.lsp.buf.implementation, opts)
+	vim.keymap.set("n", "<space>rn", vim.lsp.buf.rename, opts)
+	vim.keymap.set("n", "<C-f>", format_sync, opts)
+	vim.keymap.set("n", "<C-d>", "<cmd>EslintFixAll<CR>", opts)
 end
 
 local exports = {
 	on_attach = on_attach,
-	on_attach_noformat = on_attach_noformat,
 	has_words_before = has_words_before,
 }
 

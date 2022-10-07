@@ -39,7 +39,7 @@ sys-apps/dbus user-session
 sys-apps/portage gentoo-dev -rsync-verify
 sys-apps/systemd audit curl gnuefi importd nat xkb
 sys-apps/xdg-desktop-portal screencast
-sys-devel/clang default-compiler-rt default-libcxx
+sys-devel/clang-common default-compiler-rt default-libcxx
 sys-devel/clang-runtime libcxx
 sys-devel/gcc -go graphite
 sys-devel/llvm -doc libedit
@@ -47,7 +47,7 @@ sys-libs/glibc -multiarch
 sys-kernel/gentoo-sources experimental symlink
 sys-kernel/linux-firmware savedconfig
 virtual/rust rustfmt
-www-client/firefox clang gmp-autoupdate mold pulseaudio -pgo system-harfbuzz system-icu system-jpeg system-libevent system-libvpx system-png system-sqlite screenshot screencast
+www-client/firefox clang gmp-autoupdate mold pulseaudio pgo system-harfbuzz system-icu system-jpeg system-libevent system-libvpx system-png system-sqlite screenshot screencast
 x11-libs/libdrm video_cards_radeon
 x11-terms/gnome-terminal -nautilus -browser-extension -gnome-shell
 
@@ -79,6 +79,10 @@ app-text/xmlto text
 # Required by www-client/firefox
 media-libs/libpng apng
 media-libs/libvpx postproc
+
+# Required by www-client/firefox[pgo]
+gui-libs/wlroots tinywl
+
 # dev-db/sqlite secure-delete
 
 # Required by sci-libs/or-tools

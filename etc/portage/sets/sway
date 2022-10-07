@@ -4,6 +4,7 @@ gui-apps/foot
 gui-apps/grim
 gui-apps/mako
 gui-apps/slurp
+gui-apps/swaylock
 gui-apps/waybar[network,popups,tray]
 gui-apps/wl-clipboard
 gui-apps/wlgreet
