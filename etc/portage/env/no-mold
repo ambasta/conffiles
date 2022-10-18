@@ -1,2 +1,3 @@
 CFLAGS="-march=native -pipe -fno-stack-protector -O3"
+LDFLAGS="-Wl,-O1 -Wl,--as-needed"
 CXXFLAGS="${CFLAGS}"
