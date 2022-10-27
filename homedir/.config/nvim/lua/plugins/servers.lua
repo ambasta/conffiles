@@ -115,7 +115,7 @@ for _, server in ipairs(servers) do
 		opts.flags = {
 			allow_incremental_sync = true,
 		}
-		opts.capabilities.workspace.configuration = true
+		-- opts.capabilities.workspace.configuration = true
 		opts.capabilities.textDocument = {
 			completion = {
 				completionItem = {
