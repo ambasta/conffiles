@@ -1,5 +1,5 @@
-*/* PYTHON_TARGETS: -* python3_10 python3_11
-*/* PYTHON_SINGLE_TARGET: -* python3_10
+*/* PYTHON_TARGETS: -* python3_11
+*/* PYTHON_SINGLE_TARGET: -* python3_11
 
 # Features I want myself
 app-crypt/pinentry gtk
@@ -38,11 +38,10 @@ sys-kernel/gentoo-sources experimental symlink
 sys-kernel/linux-firmware savedconfig
 virtual/rust rustfmt
 # Firefox forces non-upstream patches to png for apng which break other apps that use system-png
-www-client/firefox clang gmp-autoupdate mold pulseaudio pgo system-harfbuzz system-icu system-jpeg system-libevent system-libvpx system-png system-sqlite screenshot screencast
+www-client/firefox clang gmp-autoupdate mold pulseaudio pgo system-harfbuzz system-icu system-jpeg system-libevent system-libvpx -system-png system-python-libs system-sqlite screenshot screencast
 
 
 # Required by www-client/firefox
-media-libs/libpng apng
 media-libs/libvpx postproc
 
 # Required by www-client/firefox[pgo]
