@@ -223,4 +223,5 @@ exec_always {
   gsettings set $gnome-schema monospace-font-name 'Noto Sans Mono 11'
 }
 
-exec /home/amitprakash/.local/bin/sway_scripts.sh
+# exec /home/amitprakash/.local/bin/sway_scripts.sh
+include /etc/sway/config.d/*

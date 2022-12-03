@@ -39,13 +39,14 @@ sys-kernel/linux-firmware savedconfig
 virtual/rust rustfmt
 # Firefox forces non-upstream patches to png for apng which break other apps that use system-png
 www-client/firefox clang gmp-autoupdate mold pulseaudio pgo system-harfbuzz system-icu system-jpeg system-libevent system-libvpx -system-png system-python-libs system-sqlite screenshot screencast
-www-client/chromium gtk4 -hangouts -js-type-check -official -proprietary-codecs screencast
+www-client/chromium custom-cflags gtk4 -hangouts -js-type-check -official -proprietary-codecs screencast
 # www-client/chromium gtk4 libcxx -official -proprietary-codecs screencast system-av1 system-harfbuzz system-icu system-png vaapi wayland -hangouts -js-type-check
 
 # Required by www-client/chromium
 app-text/xmlto text
 dev-libs/libxml2 icu
 media-libs/harfbuzz icu
+sys-libs/zlib minizip
 
 # Required by www-client/firefox
 media-libs/libvpx postproc
@@ -54,7 +55,7 @@ media-libs/libvpx postproc
 gui-libs/wlroots tinywl
 
 # Required by seahorse
-# app-crypt/gcr vala
+app-crypt/gcr gtk
 app-crypt/libsecret vala
 gui-libs/libhandy vala
 

@@ -1,2 +1,0 @@
-# Mask the USE flag for split /usr file system layout
-split-usr
