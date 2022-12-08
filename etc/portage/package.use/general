@@ -13,6 +13,7 @@ dev-lang/python sqlite
 dev-libs/boost -mpi
 dev-libs/tree-sitter ts-cli
 dev-vcs/git -iconv -webdav
+gui-apps/waybar experimental
 media-fonts/terminus-font a-like-o -ru-g distinct-l quote
 media-libs/libaom -examples
 media-libs/vulkan-loader layers
