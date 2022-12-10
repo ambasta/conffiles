@@ -19,7 +19,7 @@ media-libs/libaom -examples
 media-libs/vulkan-loader layers
 media-sound/pulseaudio -daemon
 media-video/ffmpeg cpudetection libdrm gnutls openh264 opus sdl vpx x264
-media-video/pipewire bluetooth gstreamer ffmpeg pipewire-alsa sound-server
+media-video/pipewire bluetooth gsettings gstreamer ffmpeg pipewire-alsa sound-server
 net-libs/nodejs icu system-icu inspector -npm -snapshot
 net-misc/networkmanager -bluetooth -ppp -dhclient -nss gnutls
 net-misc/ofono -atmodem -cdmamodem -isimodem -phonesim -qmimodem -provision
