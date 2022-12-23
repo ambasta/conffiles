@@ -40,6 +40,10 @@ for _, server in ipairs(servers) do
 		local default_opts = require("lspconfig.server_configurations.tsserver")
 		opts.cmd = vim.list_extend({ "yarn" }, default_opts.default_config.cmd)
 		opts.root_dir = lspconfig_util.root_pattern({ ".yarn", "node_modules" })
+	elseif server == "clangd" then
+		local default_opts = require("lspconfig.server_configurations.clangd")
+		opts.cmd = { "clangd", "--enable-config" }
+		opts.filetypes = vim.list_extend({ "cppm", "cxxm" }, default_opts.default_config.filetypes)
 	elseif server == "eslint" then
 		local default_opts = require("lspconfig.server_configurations.eslint")
 		opts.cmd = vim.list_extend({ "yarn" }, default_opts.default_config.cmd)
