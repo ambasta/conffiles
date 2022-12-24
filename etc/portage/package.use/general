@@ -7,8 +7,8 @@ app-emulation/podman fuse
 dev-db/postgresql llvm python threads uuid
 dev-java/openjdk-bin -webstart
 dev-java/openjdk gentoo-vm
-dev-lang/rust rls rustfmt rust-src system-bootstrap system-llvm
-dev-lang/rust-bin rustfmt rls
+dev-lang/rust rust-analyzer rustfmt rust-src system-bootstrap system-llvm
+dev-lang/rust-bin rust-analyzer rustfmt
 dev-lang/python sqlite
 dev-libs/boost -mpi
 dev-libs/tree-sitter ts-cli
