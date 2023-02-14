@@ -2,8 +2,8 @@
 */* PYTHON_SINGLE_TARGET: -* python3_11
 
 # Features I want myself
+app-containers/podman fuse
 app-crypt/pinentry gtk
-app-emulation/podman fuse
 dev-db/postgresql llvm python threads uuid
 dev-java/openjdk-bin -webstart
 dev-java/openjdk gentoo-vm
@@ -16,10 +16,11 @@ dev-vcs/git -iconv -webdav
 gui-apps/waybar experimental
 media-fonts/terminus-font a-like-o -ru-g distinct-l quote
 media-libs/libaom -examples
+media-libs/mesa vulkan-overlay
 media-libs/vulkan-loader layers
 media-sound/pulseaudio -daemon
 media-video/ffmpeg cpudetection libdrm gnutls openh264 opus sdl vpx x264
-media-video/pipewire bluetooth gsettings gstreamer ffmpeg pipewire-alsa sound-server
+media-video/pipewire bluetooth extra gsettings gstreamer ffmpeg pipewire-alsa sound-server
 net-libs/nodejs icu system-icu inspector -npm -snapshot
 net-misc/networkmanager -bluetooth -ppp -dhclient -nss gnutls
 net-misc/ofono -atmodem -cdmamodem -isimodem -phonesim -qmimodem -provision
@@ -32,7 +33,7 @@ sys-apps/systemd gnuefi -seccomp
 sys-apps/xdg-desktop-portal screencast
 sys-devel/clang-common default-compiler-rt default-libcxx stricter
 sys-devel/clang-runtime libcxx
-sys-devel/gcc -go graphite
+sys-devel/gcc graphite
 sys-devel/llvm -doc libedit
 sys-libs/glibc -multiarch
 sys-kernel/gentoo-sources experimental symlink
@@ -62,7 +63,7 @@ gui-libs/libhandy vala
 
 # Required by sets/sway
 gui-apps/waybar network tray
-gui-wm/sway tray
+gui-wm/sway tray grimshot
 
 # Required by media-libs/mesa[radeon]
 x11-libs/libdrm video_cards_radeon
