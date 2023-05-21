@@ -1,0 +1,12 @@
+[Unit]
+Description=MongoDB Podman container
+After=network.target
+Wants=network.target
+
+[Service]
+Restart=always
+ExecStart=/usr/bin/podman start -a board
+ExecStop=/usr/bin/podman stop -t 10 board
+
+[Install]
+WantedBy=default.target

@@ -8,7 +8,8 @@ local servers = {
 	"clangd",
 	"cmake",
 	"eslint",
-	"jdtls",
+	"java_language_server",
+	-- "jdtls",
 	"jsonls",
 	"gopls",
 	"pyright",
@@ -67,6 +68,7 @@ for _, server in ipairs(servers) do
 			new_config.cmd = opts.cmd
 		end
 	elseif server == "pyright" then
+		opts.cmd = { "pywrong", "--stdio" }
 		opts.on_attach = utils.on_attach
 	elseif server == "jsonls" then
 		opts.commands = {
@@ -84,6 +86,9 @@ for _, server in ipairs(servers) do
 				all_features = true,
 			},
 		}
+	elseif server == "java_language_server" then
+		opts.cmd = { "/home/amitprakash/foss/java-language-server/dist/lang_server_linux.sh" }
+		-- setup
 	elseif server == "jdtls" then
 		local root_dir = lspconfig_util.root_pattern({ ".git", "mvnw", "gradlew", "pom.xml" })
 		local home = os.getenv("HOME")
