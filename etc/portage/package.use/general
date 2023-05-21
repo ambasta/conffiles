@@ -21,7 +21,7 @@ media-libs/vulkan-loader layers
 media-sound/pulseaudio -daemon
 media-video/ffmpeg cpudetection libdrm gnutls openh264 opus sdl vpx x264
 media-video/pipewire bluetooth extra gsettings gstreamer ffmpeg pipewire-alsa sound-server
-net-libs/nodejs icu system-icu inspector -npm -snapshot
+net-libs/nodejs icu corepack system-icu inspector -npm -snapshot
 net-misc/networkmanager -bluetooth -ppp -dhclient -nss gnutls
 net-misc/ofono -atmodem -cdmamodem -isimodem -phonesim -qmimodem -provision
 net-wireless/bluez experimental -mesh -obex
@@ -31,7 +31,7 @@ sys-apps/portage gentoo-dev -rsync-verify
 # Policykit here will allow user to run root commands after entering password
 sys-apps/systemd gnuefi -seccomp
 sys-apps/xdg-desktop-portal screencast
-sys-devel/clang-common default-compiler-rt default-libcxx stricter
+sys-devel/clang-common default-libcxx stricter
 sys-devel/clang-runtime libcxx
 sys-devel/gcc graphite
 sys-devel/llvm -doc libedit
@@ -40,7 +40,7 @@ sys-kernel/gentoo-sources experimental symlink
 sys-kernel/linux-firmware savedconfig
 virtual/rust rustfmt
 # Firefox forces non-upstream patches to png for apng which break other apps that use system-png
-www-client/firefox clang gmp-autoupdate mold pulseaudio pgo system-harfbuzz system-icu system-jpeg system-libevent system-libvpx -system-png system-python-libs system-sqlite screenshot screencast
+www-client/firefox clang gmp-autoupdate mold pulseaudio pgo system-harfbuzz system-icu system-jpeg system-libevent system-libvpx -system-png system-python-libs system-sqlite screenshot screencast -telemetry
 www-client/chromium custom-cflags gtk4 -hangouts -js-type-check -official -proprietary-codecs screencast
 # www-client/chromium gtk4 libcxx -official -proprietary-codecs screencast system-av1 system-harfbuzz system-icu system-png vaapi wayland -hangouts -js-type-check
 
@@ -57,7 +57,7 @@ media-libs/libvpx postproc
 gui-libs/wlroots tinywl
 
 # Required by seahorse
-app-crypt/gcr gtk
+app-crypt/gcr gtk vala
 app-crypt/libsecret vala
 gui-libs/libhandy vala
 
