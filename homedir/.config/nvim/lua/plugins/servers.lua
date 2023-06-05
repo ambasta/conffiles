@@ -35,6 +35,7 @@ for _, server in ipairs(servers) do
 		flags = {
 			debounce_text_changes = 150,
 		},
+		format = { timeout_ms = 5000 },
 	}
 
 	if server == "tsserver" then

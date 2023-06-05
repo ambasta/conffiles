@@ -8,9 +8,7 @@ handler.setup({
 		handler.builtins.formatting.cmake_format,
 		handler.builtins.formatting.isort,
 		handler.builtins.formatting.prettierd.with({
-			dynamic_command = function(params)
-				return resolver.from_yarn_pnp(params)
-			end,
+			dynamic_command = resolver.from_yarn_pnp(),
 		}),
 		handler.builtins.formatting.stylua,
 	},

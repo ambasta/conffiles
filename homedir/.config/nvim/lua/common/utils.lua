@@ -7,11 +7,13 @@ end
 
 local augroup = vim.api.nvim_create_augroup("LspFormatting", {})
 
+local allowed
+
 local lsp_formatting = function(bufnr)
 	vim.lsp.buf.format({
-		-- filter = function(client)
-		-- return client.name == "eslint"
-		-- end,
+		filter = function(client)
+			return client.name ~= "tsserver"
+		end,
 		bufnr = bufnr,
 	})
 end
@@ -41,8 +43,15 @@ local on_attach = function(client, bufnr)
 			group = augroup,
 			buffer = bufnr,
 			callback = function()
-				vim.lsp.buf.format({ bufnr = bufnr })
+				-- vim.lsp.buf.format({ bufnr = bufnr })
 				-- lsp_formatting(bufnr)
+				vim.lsp.buf.format({
+					async = true,
+          timeout_ms = 5000,
+					filter = function(client)
+						return client.name ~= "tsserver"
+					end,
+				})
 			end,
 		})
 	end
