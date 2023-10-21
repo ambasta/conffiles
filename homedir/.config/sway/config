@@ -116,6 +116,9 @@ include ~/.config/sway/menuoverride
     bindsym $mod+Shift+Down move down
     bindsym $mod+Shift+Up move up
     bindsym $mod+Shift+Right move right
+
+    bindsym $mod+Tab exec swayr switch-to-urgent-or-lru-window
+    bindsym $mod+Next exec swayr next-window all-workspaces
 #
 # Workspaces:
 #
@@ -224,4 +227,5 @@ exec_always {
 }
 
 # exec /home/amitprakash/.local/bin/sway_scripts.sh
+exec env RUST_BACKTRACE=1 RUST_LOG=swayr=debug swayrd > /tmp/swayrd.log 2>&1
 include /etc/sway/config.d/*
