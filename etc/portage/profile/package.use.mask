@@ -1,2 +1,5 @@
 dev-java/openjdk-bin -gentoo-vm
 dev-java/openjdk -gentoo-vm
+net-libs/nodejs -lto
+# www-client/firefox -system-python-libs
+dev-vcs/git -pcre-jit
