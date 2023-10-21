@@ -12,6 +12,7 @@ dev-lang/rust-bin rust-analyzer rustfmt
 dev-lang/python sqlite
 dev-libs/boost -mpi
 dev-libs/tree-sitter ts-cli
+dev-python/numpy -lapack
 dev-vcs/git -iconv -webdav
 gui-apps/waybar experimental
 media-fonts/terminus-font a-like-o -ru-g distinct-l quote
@@ -29,8 +30,9 @@ net-wireless/iwd wired
 sys-apps/dbus user-session
 sys-apps/portage gentoo-dev -rsync-verify
 # Policykit here will allow user to run root commands after entering password
-sys-apps/systemd gnuefi -seccomp
+sys-apps/systemd boot gnuefi -seccomp
 sys-apps/xdg-desktop-portal screencast
+# sys-cluster/minikube libvirt
 sys-devel/clang-common default-libcxx stricter
 sys-devel/clang-runtime libcxx
 sys-devel/gcc graphite
@@ -39,6 +41,7 @@ sys-libs/glibc -multiarch
 sys-kernel/gentoo-sources experimental symlink
 sys-kernel/linux-firmware savedconfig
 virtual/rust rustfmt
+www-apps/gitea sqlite
 # Firefox forces non-upstream patches to png for apng which break other apps that use system-png
 www-client/firefox clang gmp-autoupdate mold pulseaudio pgo system-harfbuzz system-icu system-jpeg system-libevent system-libvpx -system-png system-python-libs system-sqlite screenshot screencast -telemetry
 www-client/chromium custom-cflags gtk4 -hangouts -js-type-check -official -proprietary-codecs screencast
@@ -67,3 +70,17 @@ gui-wm/sway tray grimshot
 
 # Required by media-libs/mesa[radeon]
 x11-libs/libdrm video_cards_radeon
+
+# Required by sys-devel/clang-common[default-libcxx]
+sys-libs/libcxx static-libs
+sys-libs/libcxxabi static-libs
+
+
+# Required by minikube[libvirt]
+# net-dns/dnsmasq ipv6 script
+
+# Required by gitea
+acct-user/git gitea
+
+# Required by app-containers/podman
+net-firewall/iptables nftables

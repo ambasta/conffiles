@@ -2,12 +2,11 @@ require("common.settings")
 require("common.keymaps")
 require("plugins.treesitter")
 require("plugins.gruvbox")
--- require('plugins.copilot')
+require('plugins.copilot')
 require("plugins.complete")
 require("plugins.installer")
 require("plugins.formatters")
 require("plugins.servers")
 -- require('plugins.jdtls')
-
 -- vim.lsp.set_log_level("debug")
 -- autocmd BufWritePre *.tsx,*.ts,*.jsx,*.js EslintFixAll

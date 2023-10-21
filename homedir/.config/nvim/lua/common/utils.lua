@@ -9,17 +9,11 @@ local augroup = vim.api.nvim_create_augroup("LspFormatting", {})
 
 local allowed
 
-local lsp_formatting = function(bufnr)
-	vim.lsp.buf.format({
-		filter = function(client)
-			return client.name ~= "tsserver"
-		end,
-		bufnr = bufnr,
-	})
-end
-
 local format_sync = function()
-	vim.lsp.buf.format({ async = false })
+	vim.lsp.buf.format({
+		async = false,
+		timeout_ms = 5000,
+	})
 end
 
 local on_attach = function(client, bufnr)
@@ -39,29 +33,35 @@ local on_attach = function(client, bufnr)
 
 	if client.supports_method("textDocument/formatting") then
 		vim.api.nvim_clear_autocmds({ group = augroup, buffer = bufnr })
-		vim.api.nvim_create_autocmd("BufWritePre", {
-			group = augroup,
-			buffer = bufnr,
-			callback = function()
-				-- vim.lsp.buf.format({ bufnr = bufnr })
-				-- lsp_formatting(bufnr)
-				vim.lsp.buf.format({
-					async = true,
-          timeout_ms = 5000,
-					filter = function(client)
-						return client.name ~= "tsserver"
-					end,
-				})
-			end,
-		})
+		client.server_capabilities.document_formatting = true
+
+		-- if client.name ~= "tsserver" then
+		-- 	if client.name == "eslint" then
+		-- 		vim.api.nvim_create_autocmd("BufWritePre", {
+		-- 			buffer = bufnr,
+		-- 			command = "EslintFixAll",
+		-- 		})
+		-- 	else
+		-- 		vim.api.nvim_create_autocmd("BufWritePre", {
+		-- 			group = augroup,
+		-- 			buffer = bufnr,
+		-- 			callback = function()
+		-- 				vim.lsp.buf.format({
+		-- 					async = true,
+		-- 					timeout_ms = 5000,
+		-- 				})
+		-- 			end,
+		-- 		})
+		-- 	end
+		-- end
 	end
 
-	if client.name == "tsserver" then
-		client.server_capabilities.document_formatting = true
-		client.server_capabilities.document_range_formatting = true
-	elseif client.name == "eslint" then
-		client.server_capabilities.document_formatting = true
-	end
+	-- if client.name == "tsserver" then
+	-- 	client.server_capabilities.document_formatting = false
+	-- 	client.server_capabilities.document_range_formatting = false
+	-- elseif client.name == "eslint" then
+	-- 	client.server_capabilities.document_formatting = true
+	-- end
 
 	buf_set_option("omnifunc", "v:lua.vim.lsp.omnifunc")
 

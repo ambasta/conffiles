@@ -8,10 +8,11 @@ local servers = {
 	"clangd",
 	"cmake",
 	"eslint",
+	"gopls",
 	"java_language_server",
 	-- "jdtls",
 	"jsonls",
-	"gopls",
+  "kotlin_language_server",
 	"pyright",
 	"rust_analyzer",
 	"tsserver",
@@ -70,6 +71,18 @@ for _, server in ipairs(servers) do
 		end
 	elseif server == "pyright" then
 		opts.cmd = { "pywrong", "--stdio" }
+		opts.capabilities.textDocument = {
+      publishDiagnostics = {
+        tagSupport = {
+          valueSet = { 2 }
+        }
+      },
+			completion = {
+				completionItem = {
+					snippetSupport = true,
+				},
+			}
+		}
 		opts.on_attach = utils.on_attach
 	elseif server == "jsonls" then
 		opts.commands = {
@@ -166,6 +179,9 @@ for _, server in ipairs(servers) do
 				},
 			},
 		}
+	elseif server == "kotlin_language_server" then
+		local default_opts = require("lspconfig.server_configurations.kotlin_language_server")
+		opts.root_dir = lspconfig_util.root_pattern({ "gradlew", "settings.gradle.kts" })
 	end
 
 	handler[server].setup(opts)

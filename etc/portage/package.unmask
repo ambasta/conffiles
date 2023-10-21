@@ -1,2 +1,4 @@
 virtual/jdk:17
 virtual/jre:17
+~dev-lang/rust-1.70.0
+~virtual/rust-1.70.0

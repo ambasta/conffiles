@@ -31,3 +31,6 @@
 [submodule "homedir/.config/nvim/pack/syntax/start/nvim-treesitter"]
 	path = homedir/.config/nvim/pack/syntax/start/nvim-treesitter
 	url = https://github.com/nvim-treesitter/nvim-treesitter.git
+[submodule "homedir/.config/nvim/pack/lsp/start/copilot.vim"]
+	path = homedir/.config/nvim/pack/lsp/start/copilot.vim
+	url = https://github.com/github/copilot.vim
