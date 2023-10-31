@@ -100,6 +100,15 @@ for _, server in ipairs(servers) do
 				all_features = true,
 			},
 		}
+  elseif server == "gopls" then
+    opts.settings = {
+      gopls = {
+        analyses = {
+          unusedparams = true,
+        },
+        staticcheck = true,
+      }
+    }
 	elseif server == "java_language_server" then
 		opts.cmd = { "/home/amitprakash/foss/java-language-server/dist/lang_server_linux.sh" }
 		-- setup
