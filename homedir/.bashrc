@@ -2,7 +2,7 @@
 # export XDG_CACHE_HOME=$HOME/.cache
 source /etc/profile
 
-export PATH=$PATH:/home/amitprakash/.local/bin
+export PATH=$PATH:/home/amitprakash/.local/bin:$(yarn global bin)
 export SSH_AUTH_SOCK=/run/user/$(id -u)/gcr/ssh
 alias awsauth='source /home/amitprakash/.virtualenvs/awsauth/bin/activate'
 alias awsshell='source /home/amitprakash/.virtualenvs/awsshell/bin/activate'

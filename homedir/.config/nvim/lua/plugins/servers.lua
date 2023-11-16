@@ -70,7 +70,7 @@ for _, server in ipairs(servers) do
 			new_config.cmd = opts.cmd
 		end
 	elseif server == "pyright" then
-		opts.cmd = { "pywrong", "--stdio" }
+    -- opts.cmd = { "pywrong", "--stdio" }
 		opts.capabilities.textDocument = {
       publishDiagnostics = {
         tagSupport = {

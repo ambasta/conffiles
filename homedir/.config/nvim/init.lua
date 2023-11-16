@@ -8,5 +8,5 @@ require("plugins.installer")
 require("plugins.formatters")
 require("plugins.servers")
 -- require('plugins.jdtls')
-vim.lsp.set_log_level("debug")
+-- vim.lsp.set_log_level("debug")
 -- autocmd BufWritePre *.tsx,*.ts,*.jsx,*.js EslintFixAll

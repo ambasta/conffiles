@@ -30,7 +30,7 @@ net-wireless/iwd wired
 sys-apps/dbus user-session
 sys-apps/portage gentoo-dev -rsync-verify
 # Policykit here will allow user to run root commands after entering password
-sys-apps/systemd boot gnuefi -seccomp
+sys-apps/systemd boot gnuefi kernel-install -seccomp
 sys-apps/xdg-desktop-portal screencast
 # sys-cluster/minikube libvirt
 sys-devel/clang-common default-libcxx stricter
