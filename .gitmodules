@@ -19,9 +19,6 @@
 [submodule "homedir/.config/nvim/pack/colorscheme/start/gruvbox"]
 	path = homedir/.config/nvim/pack/colorscheme/start/gruvbox
 	url = https://github.com/gruvbox-community/gruvbox.git
-[submodule "homedir/.config/nvim/pack/lsp/start/null-ls.nvim"]
-	path = homedir/.config/nvim/pack/lsp/start/null-ls.nvim
-	url = https://github.com/jose-elias-alvarez/null-ls.nvim.git
 [submodule "homedir/.config/nvim/pack/utils/start/plenary.nvim"]
 	path = homedir/.config/nvim/pack/utils/start/plenary.nvim
 	url = https://github.com/nvim-lua/plenary.nvim.git
