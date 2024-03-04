@@ -1,4 +1,5 @@
 -- local unpack = table.unpack
+local formatter = require("plugins.formatters")
 
 local has_words_before = function()
 	local line, column = unpack(vim.api.nvim_win_get_cursor(0))
@@ -69,7 +70,7 @@ local on_attach = function(client, bufnr)
 	vim.keymap.set("n", "gd", vim.lsp.buf.definition, opts)
 	vim.keymap.set("n", "gi", vim.lsp.buf.implementation, opts)
 	vim.keymap.set("n", "<space>rn", vim.lsp.buf.rename, opts)
-	vim.keymap.set("n", "<C-f>", format_sync, opts)
+	vim.keymap.set("n", "<C-f>", formatter.formatter, opts)
 	vim.keymap.set("n", "<C-d>", "<cmd>EslintFixAll<CR>", opts)
 end
 

@@ -14,7 +14,8 @@ dev-libs/boost -mpi
 dev-libs/tree-sitter ts-cli
 dev-python/numpy -lapack
 dev-vcs/git -iconv -webdav
-gui-apps/waybar experimental
+gui-apps/waybar network experimental
+gui-libs/wlroots liftoff
 media-fonts/terminus-font a-like-o -ru-g distinct-l quote
 media-libs/libaom -examples
 media-libs/mesa vulkan-overlay
@@ -38,6 +39,7 @@ sys-devel/clang-runtime libcxx
 sys-devel/gcc graphite
 sys-devel/llvm -doc libedit
 sys-libs/glibc -multiarch
+sys-kernel/installkernel systemd-boot
 sys-kernel/gentoo-sources experimental symlink
 sys-kernel/linux-firmware savedconfig
 virtual/rust rustfmt
@@ -63,10 +65,6 @@ gui-libs/wlroots tinywl
 app-crypt/gcr gtk vala
 app-crypt/libsecret vala
 gui-libs/libhandy vala
-
-# Required by sets/sway
-gui-apps/waybar network tray
-gui-wm/sway tray grimshot
 
 # Required by media-libs/mesa[radeon]
 x11-libs/libdrm video_cards_radeon

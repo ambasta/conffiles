@@ -1,5 +1,5 @@
 CompileFlags:
-  Add: [-std=c++2b, -Wall, -Wno-missing-prototypes, -Werror]
+  Add: [-std=c++23, -Wall, -Wno-missing-prototypes, -Werror]
 Diagnostics:
   ClangTidy:
     Add: [performance*, modernize*, readability*]

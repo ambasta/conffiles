@@ -1,3 +1,5 @@
 app-editors/neovim
 dev-libs/tree-sitter
 dev-lua/StyLua
+sys-apps/ripgrep
+sys-apps/fd

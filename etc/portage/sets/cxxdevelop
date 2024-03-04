@@ -5,7 +5,7 @@ dev-cpp/nlohmann_json
 dev-cpp/range-v3
 # dev-cpp/readerwriterqueue
 dev-cpp/tbb
+dev-debug/gdb
 dev-libs/boost
 dev-libs/libfmt
 # dev-libs/poco
-sys-devel/gdb
