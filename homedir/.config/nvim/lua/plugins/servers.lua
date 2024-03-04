@@ -2,6 +2,7 @@ local handler = require("lspconfig")
 local utils = require("common.utils")
 local capabilities = require("plugins.capabilities")
 local lspconfig_util = require("lspconfig.util")
+local yaml_companion = require('plugins.yaml-companion')
 
 local servers = {
 	"angularls",
@@ -16,6 +17,7 @@ local servers = {
 	"pyright",
 	"rust_analyzer",
 	"tsserver",
+  "yamlls",
 }
 
 function GetFileMatchingPattern(search_dir, pattern)
@@ -112,6 +114,8 @@ for _, server in ipairs(servers) do
 	elseif server == "java_language_server" then
 		opts.cmd = { "/home/amitprakash/foss/java-language-server/dist/lang_server_linux.sh" }
 		-- setup
+  elseif server == "yamlls" then
+    opts = yaml_companion.handler
 	elseif server == "jdtls" then
 		local root_dir = lspconfig_util.root_pattern({ ".git", "mvnw", "gradlew", "pom.xml" })
 		local home = os.getenv("HOME")

@@ -1,23 +1,26 @@
-local handler = require("null-ls")
-local resolver = require("null-ls.helpers.command_resolver")
-local utils = require("common.utils")
+local handler = require("conform")
 
 handler.setup({
-	sources = {
-		handler.builtins.formatting.black,
-		handler.builtins.formatting.cmake_format,
-		handler.builtins.formatting.isort,
-    -- rely on eslint instead
-		-- handler.builtins.formatting.prettierd.with({
-		-- 	dynamic_command = resolver.from_yarn_pnp(),
-		-- }),
-		handler.builtins.formatting.stylua,
-	},
-	on_attach = utils.on_attach,
+  formatters_by_ft = {
+    go = { "goimports", "gofmt" },
+    lua = { "stylua" },
+    python = { "isort", "black" },
+    toml = { "taplo" },
+    cmake = { "cmake_format" },
+  },
 })
+
+local formatter = function()
+  handler.format({
+    async = true,
+    lsp_fallback = true,
+  })
+end
+
 
 local exports = {
 	handler = handler,
+  formatter = formatter,
 }
 
 return exports

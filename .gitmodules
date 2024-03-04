@@ -31,3 +31,15 @@
 [submodule "homedir/.config/nvim/pack/lsp/start/copilot.vim"]
 	path = homedir/.config/nvim/pack/lsp/start/copilot.vim
 	url = https://github.com/github/copilot.vim
+[submodule "homedir/.config/nvim/pack/lsp/start/conform.nvim"]
+	path = homedir/.config/nvim/pack/lsp/start/conform.nvim
+	url = git@github.com:stevearc/conform.nvim.git
+[submodule "homedir/.config/nvim/pack/utils/start/telescope.nvim"]
+	path = homedir/.config/nvim/pack/utils/start/telescope.nvim
+	url = git@github.com:nvim-telescope/telescope.nvim.git
+[submodule "homedir/.config/nvim/pack/utils/start/telescope-fzf-native.nvim"]
+	path = homedir/.config/nvim/pack/utils/start/telescope-fzf-native.nvim
+	url = git@github.com:nvim-telescope/telescope-fzf-native.nvim.git
+[submodule "homedir/.config/nvim/pack/utils/start/SchemaStore.nvim"]
+	path = homedir/.config/nvim/pack/utils/start/SchemaStore.nvim
+	url = git@github.com:b0o/SchemaStore.nvim.git
