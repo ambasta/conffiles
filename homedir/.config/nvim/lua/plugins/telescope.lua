@@ -1,4 +1,5 @@
 local handler = require('telescope')
+local yaml_companion = require('yaml-companion')
 
 handler.setup({
   defaults = {
