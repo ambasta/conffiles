@@ -1,0 +1,4 @@
+CFLAGS="-march=znver4 -pipe -fno-stack-protector -O3"
+LDFLAGS="-Wl,-O1 -Wl,--as-needed"
+CXXFLAGS="${CFLAGS}"
+RUSTFLAGS="-C target-cpu=znver4"

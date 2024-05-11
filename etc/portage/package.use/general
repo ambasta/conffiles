@@ -1,6 +1,3 @@
-# */* PYTHON_TARGETS: -* python3_11
-# */* PYTHON_SINGLE_TARGET: -* python3_11
-
 */* PYTHON_TARGETS: -* python3_12
 */* PYTHON_SINGLE_TARGET: -* python3_12
 
@@ -86,3 +83,7 @@ acct-user/git gitea
 
 # Required by app-containers/podman
 net-firewall/iptables nftables
+
+# Required for chromium
+virtual/rust profiler
+dev-lang/rust profiler
