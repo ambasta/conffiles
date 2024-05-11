@@ -1,0 +1,28 @@
+From 9644f5842e0608b3ec0e4cf82fc1724dd74a9a58 Mon Sep 17 00:00:00 2001
+From: Amit Prakash Ambasta <amit.prakash.ambasta@gmail.com>
+Date: Thu, 21 Mar 2024 15:15:10 +0530
+Subject: [PATCH] Remove unwanted unreachable macro
+
+Signed-off-by: Amit Prakash Ambasta <amit.prakash.ambasta@gmail.com>
+---
+ src/app.rs | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/src/app.rs b/src/app.rs
+index e31f95d..ffd8991 100644
+--- a/src/app.rs
++++ b/src/app.rs
+@@ -469,9 +469,7 @@ impl App {
+         ));
+ 
+         inner.lock().unwrap().outputs_changed();
+-        event_queue
+-            .sync_roundtrip(&mut (), |_, _, _| unreachable!())
+-            .unwrap();
++        event_queue.sync_roundtrip(&mut (), |_, _, _| ()).unwrap();
+ 
+         //
+         // Cursor processing
+-- 
+2.44.0
+
