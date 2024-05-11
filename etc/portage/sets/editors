@@ -1,5 +1,9 @@
 app-editors/neovim
 dev-libs/tree-sitter
+dev-lua/luarocks     # Needed for lua package management
 dev-lua/StyLua
+# dev-python/neovim-remote
+dev-util/tree-sitter-cli # Needed for TSInstallFromGrammer
 sys-apps/ripgrep
 sys-apps/fd
+x11-misc/xdg-utils   # Needed for xdg-open

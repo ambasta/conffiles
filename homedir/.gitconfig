@@ -26,3 +26,9 @@
 	autoSetupRemote = true
 [credential]
 	helper = /usr/bin/git-credential-libsecret
+[http]
+	postBuffer = 524288000
+[protocol]
+	version = 2
+[cinnabar]
+	version-check = 1713856423

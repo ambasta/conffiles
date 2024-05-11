@@ -1,5 +1,8 @@
-*/* PYTHON_TARGETS: -* python3_11
-*/* PYTHON_SINGLE_TARGET: -* python3_11
+# */* PYTHON_TARGETS: -* python3_11
+# */* PYTHON_SINGLE_TARGET: -* python3_11
+
+*/* PYTHON_TARGETS: -* python3_12
+*/* PYTHON_SINGLE_TARGET: -* python3_12
 
 # Features I want myself
 app-containers/podman fuse
@@ -29,6 +32,7 @@ net-misc/ofono -atmodem -cdmamodem -isimodem -phonesim -qmimodem -provision
 net-wireless/bluez experimental -mesh -obex
 net-wireless/iwd wired
 sys-apps/dbus user-session
+sys-apps/fwupd amdgpu bluetooth fastboot flashrom gnutls nvme spi tpm uefi
 sys-apps/portage gentoo-dev -rsync-verify
 # Policykit here will allow user to run root commands after entering password
 sys-apps/systemd boot gnuefi kernel-install -seccomp
@@ -45,7 +49,7 @@ sys-kernel/linux-firmware savedconfig
 virtual/rust rustfmt
 www-apps/gitea sqlite
 # Firefox forces non-upstream patches to png for apng which break other apps that use system-png
-www-client/firefox clang gmp-autoupdate mold pulseaudio pgo system-harfbuzz system-icu system-jpeg system-libevent system-libvpx -system-png system-python-libs system-sqlite screenshot screencast -telemetry
+www-client/firefox -clang gmp-autoupdate mold pulseaudio pgo system-harfbuzz system-icu system-jpeg system-libevent system-libvpx -system-png system-python-libs system-sqlite screenshot screencast -telemetry
 www-client/chromium custom-cflags gtk4 -hangouts -js-type-check -official -proprietary-codecs screencast
 # www-client/chromium gtk4 libcxx -official -proprietary-codecs screencast system-av1 system-harfbuzz system-icu system-png vaapi wayland -hangouts -js-type-check
 
