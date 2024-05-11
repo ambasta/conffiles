@@ -1,4 +1,4 @@
-sys-libs/glibc no-mold
+sys-libs/glibc no-mold-no-native
 # sys-apps/sandbox no-mold
 # www-client/firefox no-mold
-# www-client/chromium
+www-client/chromium
