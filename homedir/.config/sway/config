@@ -38,6 +38,7 @@ output * subpixel rgb
 default_border pixel 5
 
 include ~/.config/sway/resolution
+include ~/.config/sway/input
 include ~/.config/sway/menuoverride
 # output eDP-1 pos 0 0 res 1920x1080
 # output DP-1 pos 1920 0 res 1920x1200 scale 1
