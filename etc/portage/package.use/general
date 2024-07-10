@@ -8,7 +8,6 @@ dev-db/postgresql llvm python threads uuid
 dev-java/openjdk-bin -webstart
 dev-java/openjdk gentoo-vm
 dev-lang/rust rust-analyzer rustfmt rust-src system-bootstrap system-llvm
-dev-lang/rust-bin rust-analyzer rustfmt
 dev-lang/python sqlite
 dev-libs/boost -mpi
 dev-libs/tree-sitter ts-cli
@@ -17,6 +16,7 @@ dev-vcs/git -iconv -webdav
 gui-apps/waybar network experimental
 gui-libs/wlroots liftoff
 media-fonts/terminus-font a-like-o -ru-g distinct-l quote
+media-fonts/iosevka iosevka-ss03 iosevka-ss05
 media-libs/libaom -examples
 media-libs/mesa vulkan-overlay
 media-libs/vulkan-loader layers
@@ -29,6 +29,7 @@ net-misc/ofono -atmodem -cdmamodem -isimodem -phonesim -qmimodem -provision
 net-wireless/bluez experimental -mesh -obex
 net-wireless/iwd wired
 sys-apps/dbus user-session
+sys-apps/flashrom -atavia -buspirate-spi -ch341a-spi -dediprog -developerbox-spi -digilent-spi -dirtyjtag-spi -drkaiser -dummy -gfxnvidia -internat -it8212 -nic3com -pickit2-spi -pony-spi -raiden-debug-spi -rayer-spi -satamv -satasii -serprog -stlinkv3-spi -ft2232-spi -usbblaster-spi
 sys-apps/fwupd amdgpu bluetooth fastboot flashrom gnutls nvme spi tpm uefi
 sys-apps/portage gentoo-dev -rsync-verify
 # Policykit here will allow user to run root commands after entering password
@@ -46,7 +47,7 @@ sys-kernel/linux-firmware savedconfig
 virtual/rust rustfmt
 www-apps/gitea sqlite
 # Firefox forces non-upstream patches to png for apng which break other apps that use system-png
-www-client/firefox -clang gmp-autoupdate mold pulseaudio pgo system-harfbuzz system-icu system-jpeg system-libevent system-libvpx -system-png system-python-libs system-sqlite screenshot screencast -telemetry
+www-client/firefox -clang geckodriver gmp-autoupdate mold openh264 pulseaudio pgo system-harfbuzz system-icu system-jpeg system-libevent system-libvpx -system-png system-python-libs system-sqlite screenshot screencast -telemetry
 www-client/chromium custom-cflags gtk4 -hangouts -js-type-check -official -proprietary-codecs screencast
 # www-client/chromium gtk4 libcxx -official -proprietary-codecs screencast system-av1 system-harfbuzz system-icu system-png vaapi wayland -hangouts -js-type-check
 

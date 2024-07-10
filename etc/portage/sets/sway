@@ -7,5 +7,7 @@ gui-apps/waybar[network]
 gui-apps/wl-clipboard
 gui-apps/wlgreet
 gui-libs/xdg-desktop-portal-wlr
+sys-apps/xdg-desktop-portal-gtk
 gui-wm/sway
+net-misc/keychain
 sys-apps/brightnessctl

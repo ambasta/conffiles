@@ -224,7 +224,11 @@ exec_always {
   gsettings set $gnome-schema gtk-theme "Flat-Remix-GTK-Green-Darkest-Solid-NoBorder"
   gsettings set $gnome-schema icon-theme "Adwaita"
   gsettings set $gnome-schema cursor-theme "Adwaita"
-  gsettings set $gnome-schema monospace-font-name 'Noto Sans Mono 11'
+  # gsettings set $gnome-schema monospace-font-name 'Noto Sans Mono 11'
+  gsettings set $gnome-schema monospace-font-name 'Fira Code Regular 10'
+  gsettings set $gnome-schema document-font-name 'Fira Code Regular 10'
+  gsettings set $gnome-schema font-name 'Fira Code Regular 10'
+  gsettings set org.gnome.desktop.wm.preferences titlebar-font 'Fira Code Regular 10'
 }
 
 # exec /home/amitprakash/.local/bin/sway_scripts.sh
