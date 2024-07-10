@@ -7,4 +7,5 @@
 media-fonts/cleartype-collection
 # For Chinese/Japanese/Korean Fonts
 # media-fonts/noto[cjk]
-media-fonts/terminus-font
+# media-fonts/terminus-font
+media-fonts/iosevka
