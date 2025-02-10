@@ -1,9 +1,10 @@
 app-crypt/seahorse
 dev-libs/bemenu
 gui-apps/foot
+gui-apps/grim
 gui-apps/slurp
 gui-apps/swaylock
-gui-apps/waybar[network]
+gui-apps/yambar[json,pipewire,wayland]
 gui-apps/wl-clipboard
 gui-apps/wlgreet
 gui-libs/xdg-desktop-portal-wlr

@@ -1,5 +1,5 @@
-*/* PYTHON_TARGETS: -* python3_12
-*/* PYTHON_SINGLE_TARGET: -* python3_12
+*/* PYTHON_TARGETS: -* python3_13
+*/* PYTHON_SINGLE_TARGET: -* python3_13
 
 # Features I want myself
 app-containers/podman fuse
@@ -10,11 +10,12 @@ dev-java/openjdk gentoo-vm
 dev-lang/rust rust-analyzer rustfmt rust-src system-bootstrap system-llvm
 dev-lang/python sqlite
 dev-libs/boost -mpi
+dev-libs/openssl quic
 dev-libs/tree-sitter ts-cli
 dev-python/numpy -lapack
 dev-vcs/git -iconv -webdav
 gui-apps/waybar network experimental
-gui-libs/wlroots liftoff
+gui-libs/wlroots lcms liftoff
 media-fonts/terminus-font a-like-o -ru-g distinct-l quote
 media-fonts/iosevka iosevka-ss03 iosevka-ss05
 media-libs/libaom -examples
@@ -23,6 +24,7 @@ media-libs/vulkan-loader layers
 media-sound/pulseaudio -daemon
 media-video/ffmpeg cpudetection libdrm gnutls openh264 opus sdl vpx x264
 media-video/pipewire bluetooth extra gsettings gstreamer ffmpeg pipewire-alsa sound-server
+media-video/mpv -egl
 net-libs/nodejs icu corepack system-icu inspector -npm -snapshot
 net-misc/networkmanager -bluetooth -ppp -dhclient -nss gnutls
 net-misc/ofono -atmodem -cdmamodem -isimodem -phonesim -qmimodem -provision
@@ -30,16 +32,19 @@ net-wireless/bluez experimental -mesh -obex
 net-wireless/iwd wired
 sys-apps/dbus user-session
 sys-apps/flashrom -atavia -buspirate-spi -ch341a-spi -dediprog -developerbox-spi -digilent-spi -dirtyjtag-spi -drkaiser -dummy -gfxnvidia -internat -it8212 -nic3com -pickit2-spi -pony-spi -raiden-debug-spi -rayer-spi -satamv -satasii -serprog -stlinkv3-spi -ft2232-spi -usbblaster-spi
-sys-apps/fwupd amdgpu bluetooth fastboot flashrom gnutls nvme spi tpm uefi
+sys-apps/fwupd amdgpu bluetooth fastboot flashrom gnutls nvme seccomp spi tpm uefi
 sys-apps/portage gentoo-dev -rsync-verify
 # Policykit here will allow user to run root commands after entering password
-sys-apps/systemd boot gnuefi kernel-install -seccomp
+sys-apps/systemd boot gnuefi kernel-install seccomp
 sys-apps/xdg-desktop-portal screencast
 # sys-cluster/minikube libvirt
-sys-devel/clang-common default-libcxx stricter
-sys-devel/clang-runtime libcxx
+# move sys-devel/clang-common llvm-core/clang-common
+llvm-core/clang-common default-libcxx stricter
+# move sys-devel/clang-runtime llvm-core/clang-runtime
+llvm-core/clang-runtime libcxx
 sys-devel/gcc graphite
-sys-devel/llvm -doc libedit
+# move sys-devel/llvm llvm-core/llvm
+llvm-core/llvm -doc libedit
 sys-libs/glibc -multiarch
 sys-kernel/installkernel systemd-boot
 sys-kernel/gentoo-sources experimental symlink
@@ -72,8 +77,10 @@ gui-libs/libhandy vala
 x11-libs/libdrm video_cards_radeon
 
 # Required by sys-devel/clang-common[default-libcxx]
-sys-libs/libcxx static-libs
-sys-libs/libcxxabi static-libs
+# move sys-libs/libcxx llvm-runtimes/libcxx
+llvm-runtimes/libcxx static-libs
+# move sys-libs/libcxxabi llvm-runtimes/libcxxabi
+llvm-runtimes/libcxxabi static-libs
 
 
 # Required by minikube[libvirt]
@@ -88,3 +95,10 @@ net-firewall/iptables nftables
 # Required for chromium
 virtual/rust profiler
 dev-lang/rust profiler
+
+# Required for app-portage/pfl[network-cron]
+sys-apps/util-linux caps
+
+
+# For canon
+net-print/cups-meta postscript

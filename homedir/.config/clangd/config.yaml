@@ -1,16 +1,33 @@
 CompileFlags:
-  Add: [-std=c++23, -Wall, -Wno-missing-prototypes, -Werror]
+  Add:
+    - "-std=c++23"
+    - "-Wall"
+    - "-Wno-missing-prototypes"
+    - "-Werror"
+    - "-D__cpp_concepts=202002L"
+    - "-fexperimental-library"
+# - "-stdlib=libstdc++"
+If:
+  PathExclude: [.*\.c, .*\.h]
+CompileFlags:
+  Add:
+    - "-std=c++23"
+
+Index:
+  Background: Build
+
 Diagnostics:
   ClangTidy:
     Add: [performance*, modernize*, readability*]
     CheckOptions:
-      readability-identifier-naming.VariableCase: camelBack 
+      readability-identifier-naming.VariableCase: lower_case
       readability-identifier-naming.PublicMethodCase: lower_case
       readability-identifier-naming.NamespaceCase: lower_case
-      readability-identifier-naming.ClassCase: CamelCase
+      readability-identifier-naming.ClassCase: lower_case
       readability-identifier-naming.PrivateMemberPrefix: m_
       readability-identifier-naming.PrivateMemberCase: lower_case
-      readability-identifier-naming.StructCase: CamelCase
+      readability-identifier-naming.StructCase: lower_case
       readability-identifier-naming.FunctionCase: lower_case
       readability-identifier-naming.GlobalConstantCase: UPPER_CASE
       readability-identifier-naming.StaticConstant: UPPER_CASE
+      readability-braces-around-statements.ShortStatementLines: 2

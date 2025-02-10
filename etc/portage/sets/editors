@@ -1,4 +1,5 @@
 app-editors/neovim
+# app-editors/vscode
 app-shells/fzf
 dev-libs/tree-sitter
 dev-lua/luarocks     # Needed for lua package management
