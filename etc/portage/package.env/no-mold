@@ -1,4 +1,1 @@
-sys-libs/glibc no-mold
-# sys-apps/sandbox no-mold
-# www-client/firefox no-mold
 www-client/chromium no-mold

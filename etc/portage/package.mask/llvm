@@ -1,8 +1,8 @@
->=sys-devel/clang-19
->=sys-devel/clang-common-19
->=sys-devel/lld-19
->=sys-devel/llvm-19
->=sys-devel/llvm-common-19
->=sys-devel/llvmgold-19
+>=sys-devel/clang-20
+>=sys-devel/clang-common-20
+>=sys-devel/lld-20
+>=sys-devel/llvm-20
+>=sys-devel/llvm-common-20
+>=sys-devel/llvmgold-20
 
->=sys-libs/libcxx-19
+>=sys-libs/libcxx-20
