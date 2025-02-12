@@ -1,10 +1,13 @@
+# media-fonts/croscorefonts
+media-fonts/dejavu
+media-fonts/droid
 # For huge list of emojis
 media-fonts/fontawesome
 # For scientific symbols
 # media-fonts/stix-fonts
 # For FOSS implementation of Google Fonts, By Google
 # media-fonts/noto
-media-fonts/cleartype-collection
+# media-fonts/cleartype-collection
 # For Chinese/Japanese/Korean Fonts
 # media-fonts/noto[cjk]
 # media-fonts/terminus-font

@@ -1,4 +1,4 @@
-*/* PYTHON_TARGETS: -* python3_13
+*/* PYTHON_TARGETS: -* python3_13 python3_13t
 */* PYTHON_SINGLE_TARGET: -* python3_13
 
 # Features I want myself
