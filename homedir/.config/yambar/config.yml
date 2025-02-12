@@ -1,257 +1,248 @@
-std_overline: &std_overline { overline: { size: 1, color: ddddddff } }
+# Dracula-inspired color scheme
+primary: &primary
+  foreground: f8f8f2ff
+
+secondary: &secondary
+  foreground: 6272a4ff
+
+background: &background
+  color: 282a36e6
+
+accent1: &accent1
+  foreground: 50fa7bff # Green
+
+accent2: &accent2
+  foreground: f1fa8cff # Yellow
+
+accent3: &accent3
+  foreground: ff79c6ff # Pink
+
+accent4: &accent4
+  foreground: 8be9fdff # Cyan
+
+alert: &alert
+  foreground: ff5555ff # Red
+
+# Base element styling
+segment-style: &segment-style
+  deco:
+    stack:
+      - border:
+          size: 2
+          color: 00000000 # Invisible border for spacing
+      - background:
+          color: 44475a66 # Slightly lighter than background
+      - border:
+          size: 2
+          radius: 5
+          color: 00000000
+
+  font:
+    - Fira Code Nerd Font:size=12
+    - Material Design Icons:size=14
+
+  left-margin: 8
+  right-margin: 8
+  spacing: 2
+
+# Module templates
+module-wrapper: &module-wrapper
+  content:
+    list:
+      spacing: 0
+      items:
+        - string:
+            deco:
+              border:
+                size: 0
+                radius: 5
+                color: 00000000
+            text: ""
+            font: Fira Code Nerd Font:size=16
+            <<: *secondary
+        - content: CONTENT_PLACEHOLDER
+        - string:
+            deco:
+              border:
+                size: 0
+                radius: 5
+                color: 00000000
+            text: ""
+            font: Fira Code Nerd Font:size=16
+            <<: *secondary
 
 bar:
   location: top
-  height: 64
-  spacing: 5
-  margin: 7
-
-  font: Iosevka Term Extended:size=22,Consolas
-  foreground: ffffff66
-  background: 00000000
-
+  height: 34
+  spacing: 2
+  margin: 4
+  background: *background
   border:
     width: 0
+    margin: 0
 
   left:
     - foreign-toplevel:
         content:
           map:
             conditions:
-              ~activated: { empty: {} }
               activated:
-                - string: { text: "{title}" }
+                string:
+                  text: "  {title}"
+                  <<: [*segment-style, *primary]
+
   right:
-    - network:
-        content:
-          map:
-            default: { empty: {} }
-            conditions:
-              name == enp193s0f3u1:
-                map:
-                  conditions:
-                    ~carrier: { empty: {} }
-                    carrier:
-                      map:
-                        default:
-                          {
-                            string:
-                              {
-                                text: "",
-                                foreground: ff000066,
-                                font: Font Awesome 6 Free:style=solid:size=22,
-                              },
-                          }
-                        conditions:
-                          state == up && ipv4 != "":
-                            { string: { text: "", foreground: 00ff00ff } }
     - network:
         poll-interval: 1000
         content:
-          map:
-            default: { empty: {} }
-            conditions:
-              name == wlp1s0:
-                map:
-                  default: { string: { text: , foreground: ffffff66 } }
-                  conditions:
-                    state == down: { string: { text: , foreground: ff0000ff } }
-                    state == up:
-                      map:
-                        default:
-                          - string: { text: "", foreground: 00ff00ff }
-                          - string:
-                              {
-                                text: "{ssid} {dl-speed:mb}/{ul-speed:mb} Mb/s",
-                                foreground: ffffff66,
-                              }
-                        conditions:
-                          ipv4 == "":
-                            - string: { text: , foreground: ffffff66 }
-                            - string:
-                                {
-                                  text: "{ssid} {dl-speed:mb}/{ul-speed:mb} Mb/s",
-                                  foreground: ffffff66,
-                                }
+          <<: *module-wrapper
+          substitute:
+            CONTENT_PLACEHOLDER:
+              map:
+                conditions:
+                  name == wlp1s0:
+                    map:
+                      conditions:
+                        state == up:
+                          list:
+                            items:
+                              - string:
+                                  { text: "", <<: [*segment-style, *accent1] }
+                              - string:
+                                  {
+                                    text: "{ssid}",
+                                    <<: [*segment-style, *primary],
+                                  }
+                              - string:
+                                  {
+                                    text: "{ul-speed:mb} {dl-speed:mb}",
+                                    <<: [*segment-style, *secondary],
+                                  }
+                        state == down:
+                          string:
+                            { text: " OFFLINE", <<: [*segment-style, *alert] }
+
     - cpu:
         poll-interval: 1000
         content:
-          map:
-            conditions:
-              id < 0:
-                - string:
-                    {
-                      text: "  ",
-                      foreground: 00a0ffff,
-                      font: Font Awesome 6 Free:style=solid:size=22,
-                    }
-                - ramp:
-                    tag: cpu
-                    items:
-                      - string: { text: ▁ }
-                      - string: { text: ▂ }
-                      - string: { text: ▃ }
-                      - string: { text: ▄ }
-                      - string: { text: ▅ }
-                      - string: { text: ▆ }
-                      - string: { text: ▇ }
-                      - string: { text: █ }
+          <<: *module-wrapper
+          substitute:
+            CONTENT_PLACEHOLDER:
+              list:
+                items:
+                  - ramp:
+                      tag: cpu
+                      items:
+                        - string: { text: "", <<: [*segment-style, *accent1] }
+                        - string: { text: "", <<: [*segment-style, *accent2] }
+                        - string: { text: "", <<: [*segment-style, *accent3] }
+                        - string: { text: "", <<: [*segment-style, *alert] }
+                  - string: { text: "{cpu}%", <<: [*segment-style, *primary] }
+
     - mem:
         poll-interval: 1000
         content:
-          - string:
-              {
-                text: "",
-                foreground: 00a0ffff,
-                font: Font Awesome 6 Free:style=solid:size=22,
-              }
-          - string: { text: "{used:gb}/{total:gb}" }
-    - backlight:
-        name: amdgpu_bl0
-        content:
-          [
-            string:
-              {
-                text: "",
-                foreground: 00a0ffff,
-                font: Font Awesome 6 Free:style=solid:size=22,
-              },
-            string: { text: "{percent}%" },
-          ]
+          <<: *module-wrapper
+          substitute:
+            CONTENT_PLACEHOLDER:
+              list:
+                items:
+                  - ramp:
+                      tag: mem
+                      items:
+                        - string: { text: "", <<: [*segment-style, *accent1] }
+                        - string: { text: "", <<: [*segment-style, *accent2] }
+                        - string: { text: "", <<: [*segment-style, *accent3] }
+                        - string: { text: "", <<: [*segment-style, *alert] }
+                  - string:
+                      { text: "{used:0.1f}G", <<: [*segment-style, *primary] }
+
     - pipewire:
         content:
-          map:
-            conditions:
-              type == "sink":
-                - map:
-                    conditions:
-                      form_factor == "speaker":
-                        map:
-                          conditions:
-                            cubic_volume <= 0:
-                              string:
-                                {
-                                  text: "",
-                                  foreground: a00000ff,
-                                  font: Font Awesome 6 Free:style=solid:size=22,
-                                }
-                            cubic_volume < 33:
-                              string:
-                                {
-                                  text: "",
-                                  foreground: 00a0ff00,
-                                  font: Font Awesome 6 Free:style=solid:size=22,
-                                }
-                            cubic_volume < 66:
-                              string:
-                                {
-                                  text: "",
-                                  foreground: 00ff00ff,
-                                  font: Font Awesome 6 Free:style=solid:size=22,
-                                }
-                            else:
-                              string:
-                                {
-                                  text: "",
-                                  foreground: ffa600ff,
-                                  font: Font Awesome 6 Free:style=solid:size=22,
-                                }
-                      form_factor == "headphone":
-                        map:
-                          conditions:
-                            cubic_volume <= 0:
-                              string:
-                                {
-                                  text: "",
-                                  foreground: a00000ff,
-                                  font: Font Awesome 6 Free:style=solid:size=22,
-                                }
-                            cubic_volume < 33:
-                              string:
-                                {
-                                  text: "",
-                                  foreground: 00a0ff00,
-                                  font: Font Awesome 6 Free:style=solid:size=22,
-                                }
-                            cubic_volume < 66:
-                              string:
-                                {
-                                  text: "",
-                                  foreground: 00ff00ff,
-                                  font: Font Awesome 6 Free:style=solid:size=22,
-                                }
-                            else:
-                              string:
-                                {
-                                  text: "",
-                                  foreground: ffa600ff,
-                                  font: Font Awesome 6 Free:style=solid:size=22,
-                                }
-                      else:
-                        string: { text: "" }
-                - map:
-                    conditions:
-                      ~muted:
-                        string: { text: " {cubic_volume}%" }
-                      muted:
-                        string: { text: "", foreground: ff0000ff }
+          <<: *module-wrapper
+          substitute:
+            CONTENT_PLACEHOLDER:
+              map:
+                conditions:
+                  muted:
+                    string: { text: " MUTED", <<: [*segment-style, *alert] }
+                  cubic_volume < 33:
+                    list:
+                      items:
+                        - string: { text: "", <<: [*segment-style, *accent1] }
+                        - string:
+                            {
+                              text: "{cubic_volume}%",
+                              <<: [*segment-style, *primary],
+                            }
+                  cubic_volume < 66:
+                    list:
+                      items:
+                        - string: { text: "", <<: [*segment-style, *accent2] }
+                        - string:
+                            {
+                              text: "{cubic_volume}%",
+                              <<: [*segment-style, *primary],
+                            }
+                  default:
+                    list:
+                      items:
+                        - string: { text: "", <<: [*segment-style, *accent3] }
+                        - string:
+                            {
+                              text: "{cubic_volume}%",
+                              <<: [*segment-style, *primary],
+                            }
+
     - battery:
         name: BAT1
         poll-interval: 30000
-        anchors:
-          discharging: &discharging
-            list:
-              items:
-                - ramp:
-                    tag: capacity
-                    items:
-                      - string: { text: , foreground: ff0000ff }
-                      - string: { text: , foreground: ffa600ff }
-                      - string: { text:  }
-                      - string: { text:  }
-                      - string: { text:  }
-                      - string: { text:  }
-                      - string: { text:  }
-                      - string: { text:  }
-                      - string: { text:  }
-                      - string: { text: , foreground: 00ff00ff }
-                - string: { text: "{capacity}% {estimate}" }
         content:
-          map:
-            conditions:
-              state == unknown:
-                <<: *discharging
-              state == discharging:
-                <<: *discharging
-              state == charging:
-                - string: { text: , foreground: 00ff00ff }
-                - string: { text: "{capacity}% {estimate}" }
-              state == full:
-                - string: { text: , foreground: 00ff00ff }
-                - string: { text: "{capacity}% full" }
-              state == "not charging":
-                - ramp:
-                    tag: capacity
-                    items:
-                      - string: { text:  , foreground: ff0000ff }
-                      - string: { text:  , foreground: ffa600ff }
-                      - string: { text:  , foreground: 00ff00ff }
-                      - string: { text:  , foreground: 00ff00ff }
-                      - string: { text:  , foreground: 00ff00ff }
-                      - string: { text:  , foreground: 00ff00ff }
-                      - string: { text:  , foreground: 00ff00ff }
-                      - string: { text:  , foreground: 00ff00ff }
-                      - string: { text:  , foreground: 00ff00ff }
-                      - string: { text:  , foreground: 00ff00ff }
-                - string: { text: "{capacity}%" }
+          <<: *module-wrapper
+          substitute:
+            CONTENT_PLACEHOLDER:
+              map:
+                conditions:
+                  state == charging:
+                    list:
+                      items:
+                        - string: { text: "", <<: [*segment-style, *accent1] }
+                        - string:
+                            {
+                              text: "{capacity}%",
+                              <<: [*segment-style, *primary],
+                            }
+                  default:
+                    list:
+                      items:
+                        - ramp:
+                            tag: capacity
+                            items:
+                              - string:
+                                  { text: "", <<: [*segment-style, *alert] }
+                              - string:
+                                  { text: "", <<: [*segment-style, *accent3] }
+                              - string:
+                                  { text: "", <<: [*segment-style, *accent2] }
+                              - string:
+                                  { text: "", <<: [*segment-style, *accent1] }
+                              - string:
+                                  { text: "", <<: [*segment-style, *accent1] }
+                        - string:
+                            {
+                              text: "{capacity}%",
+                              <<: [*segment-style, *primary],
+                            }
+
     - clock:
-        time-format: "%H:%M %Z"
+        date-format: "%a %d %b"
+        time-format: "%H:%M"
         content:
-          - string: { text: "{date}", right-margin: 5 }
-          - string: { text:  }
-          - string: { text: "{time}" }
-    - label:
-        content:
-          string:
-            on-click: systemctl poweroff
-            text: 
+          <<: *module-wrapper
+          substitute:
+            CONTENT_PLACEHOLDER:
+              list:
+                items:
+                  - string:
+                      { text: " {date}", <<: [*segment-style, *secondary] }
+                  - string: { text: " {time}", <<: [*segment-style, *primary] }
