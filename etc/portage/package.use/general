@@ -1,8 +1,8 @@
-*/* PYTHON_TARGETS: -* python3_13 python3_13t
+*/* PYTHON_TARGETS: -* python3_13 python3_14 python3_14t
 */* PYTHON_SINGLE_TARGET: -* python3_13
 
 # Features I want myself
-app-containers/podman fuse
+app-containers/podman wrapper
 app-crypt/pinentry gtk
 dev-db/postgresql llvm python threads uuid
 dev-java/openjdk-bin -webstart
@@ -32,16 +32,16 @@ net-wireless/bluez experimental -mesh -obex
 net-wireless/iwd wired
 sys-apps/dbus user-session
 sys-apps/flashrom -atavia -buspirate-spi -ch341a-spi -dediprog -developerbox-spi -digilent-spi -dirtyjtag-spi -drkaiser -dummy -gfxnvidia -internat -it8212 -nic3com -pickit2-spi -pony-spi -raiden-debug-spi -rayer-spi -satamv -satasii -serprog -stlinkv3-spi -ft2232-spi -usbblaster-spi
-sys-apps/fwupd amdgpu bluetooth fastboot flashrom gnutls nvme seccomp spi tpm uefi
+sys-apps/fwupd amdgpu bluetooth fastboot flashrom gnutls lzma nvme seccomp spi tpm uefi
 sys-apps/portage gentoo-dev -rsync-verify
 # Policykit here will allow user to run root commands after entering password
 sys-apps/systemd boot gnuefi kernel-install seccomp
 sys-apps/xdg-desktop-portal screencast
 # sys-cluster/minikube libvirt
 # move sys-devel/clang-common llvm-core/clang-common
-llvm-core/clang-common default-libcxx stricter
+llvm-core/clang-common stricter
 # move sys-devel/clang-runtime llvm-core/clang-runtime
-llvm-core/clang-runtime libcxx
+llvm-core/clang-runtime default-libcxx libcxx
 sys-devel/gcc graphite
 # move sys-devel/llvm llvm-core/llvm
 llvm-core/llvm -doc libedit
@@ -102,3 +102,9 @@ sys-apps/util-linux caps
 
 # For canon
 net-print/cups-meta postscript
+
+
+# PyTorch
+dev-cpp/eigen boost clang fftw hip openmp sparsehash
+llvm-core/clang-runtime openmp
+sys-devel/gcc fortran

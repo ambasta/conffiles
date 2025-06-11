@@ -1,8 +1,8 @@
->=sys-devel/clang-20
->=sys-devel/clang-common-20
->=sys-devel/lld-20
->=sys-devel/llvm-20
->=sys-devel/llvm-common-20
->=sys-devel/llvmgold-20
+>=llvm-core/clang-21
+>=llvm-core/clang-common-21
+>=llvm-core/lld-21
+>=llvm-core/llvm-21
+>=llvm-core/llvm-common-21
+>=llvm-core/llvmgold-21
 
->=sys-libs/libcxx-20
+>=llvm-runtimes/libcxx-21
