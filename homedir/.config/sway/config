@@ -13,7 +13,7 @@ set $term foot
 for_window [title="Firefox — Sharing Indicator"] floating enable, kill
 
 
-set $menu bemenu-run
+set $menu wmenu-run
 set $browser firefox-bin
 set $lockscreen swaylock
 

@@ -4,14 +4,11 @@ CompileFlags:
     - "-Wall"
     - "-Wno-missing-prototypes"
     - "-Werror"
-    - "-D__cpp_concepts=202002L"
     - "-fexperimental-library"
+# - "-D__cpp_concepts=202002L"
 # - "-stdlib=libstdc++"
 If:
   PathExclude: [.*\.c, .*\.h]
-CompileFlags:
-  Add:
-    - "-std=c++23"
 
 Index:
   Background: Build
@@ -23,7 +20,7 @@ Diagnostics:
       readability-identifier-naming.VariableCase: lower_case
       readability-identifier-naming.PublicMethodCase: lower_case
       readability-identifier-naming.NamespaceCase: lower_case
-      readability-identifier-naming.ClassCase: lower_case
+      readability-identifier-naming.ClassCase: CamelCase
       readability-identifier-naming.PrivateMemberPrefix: m_
       readability-identifier-naming.PrivateMemberCase: lower_case
       readability-identifier-naming.StructCase: lower_case
