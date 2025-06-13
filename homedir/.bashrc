@@ -2,6 +2,7 @@
 # export XDG_CACHE_HOME=$HOME/.cache
 source /etc/profile
 export COREPACK_ENABLE_DOWNLOAD_PROMPT=0
+export PYTHONDONTWRITEBYTECODE=1
 
 userid="$(id -u)"
 export SSH_AUTH_SOCK=/run/user/$userid/gcr/ssh

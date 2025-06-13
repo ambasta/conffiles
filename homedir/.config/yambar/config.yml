@@ -1,248 +1,487 @@
-# Dracula-inspired color scheme
-primary: &primary
-  foreground: f8f8f2ff
+catppuccin-base: &catppuccin-base
+  color: "1e1e2eff"
 
-secondary: &secondary
-  foreground: 6272a4ff
+catppuccin-subtext0: &catppuccin-subtext0
+  foreground: "a6adc8ff"
 
-background: &background
-  color: 282a36e6
+catppuccin-text: &catppuccin-text
+  foreground: "cdd6f4ff"
 
-accent1: &accent1
-  foreground: 50fa7bff # Green
+catppuccin-green: &catppuccin-green
+  foreground: "a6e3a1ff"
 
-accent2: &accent2
-  foreground: f1fa8cff # Yellow
+catppuccin-peach: &catppuccin-peach
+  foreground: "fab387ff"
 
-accent3: &accent3
-  foreground: ff79c6ff # Pink
+catppuccin-red: &catppuccin-red
+  foreground: "f38ba8ff"
 
-accent4: &accent4
-  foreground: 8be9fdff # Cyan
+catppuccin-blue: &catppuccin-blue
+  foreground: "89b4faff"
 
-alert: &alert
-  foreground: ff5555ff # Red
+catppuccin-sapphire: &catppuccin-sapphire
+  foreground: "74c7ecff"
 
-# Base element styling
-segment-style: &segment-style
+catppuccin-mauve: &catppuccin-mauve
+  foreground: "cba6f7ff"
+
+catppuccin-pink: &catppuccin-pink
+  foreground: "f5c2e7ff"
+
+middle: &middle
   deco:
     stack:
-      - border:
-          size: 2
-          color: 00000000 # Invisible border for spacing
       - background:
-          color: 44475a66 # Slightly lighter than background
+          <<: *catppuccin-base
       - border:
-          size: 2
-          radius: 5
-          color: 00000000
+          size: 0
+          color: "00000000"
+  font: "Iosevka Term Extended:size=26"
+  left-margin: 6
+  right-margin: 6
 
-  font:
-    - Fira Code Nerd Font:size=12
-    - Material Design Icons:size=14
-
-  left-margin: 8
+separator: &separator
+  text: ""
+  <<: *catppuccin-subtext0
+  font: "Iosevka Term Extended:size=12:style=solid"
   right-margin: 8
-  spacing: 2
-
-# Module templates
-module-wrapper: &module-wrapper
-  content:
-    list:
-      spacing: 0
-      items:
-        - string:
-            deco:
-              border:
-                size: 0
-                radius: 5
-                color: 00000000
-            text: ""
-            font: Fira Code Nerd Font:size=16
-            <<: *secondary
-        - content: CONTENT_PLACEHOLDER
-        - string:
-            deco:
-              border:
-                size: 0
-                radius: 5
-                color: 00000000
-            text: ""
-            font: Fira Code Nerd Font:size=16
-            <<: *secondary
+  left-margin: 8
 
 bar:
   location: top
-  height: 34
-  spacing: 2
-  margin: 4
-  background: *background
+  height: 40
+  spacing: 0
+  margin: 0
+
   border:
-    width: 0
-    margin: 0
+    width: 1
+    color: "42445aff"
+
+  foreground: "cdd6f4cc"
+  background: "1e1e2ecc"
 
   left:
     - foreign-toplevel:
         content:
           map:
+            default:
+              list:
+                spacing: 0
+                items:
+                  - string:
+                      text: "{title}"
+                      <<:
+                        - *catppuccin-text
+                        - *middle
             conditions:
+              ~activated:
+                empty:
+                  margin: 0
+                  deco:
+                    border:
+                      size: 0
+                      color: "00000000"
               activated:
-                string:
-                  text: "  {title}"
-                  <<: [*segment-style, *primary]
-
+                list:
+                  spacing: 0
+                  items:
+                    - string:
+                        text: "{title}"
+                        <<:
+                          - *catppuccin-text
+                          - *middle
   right:
     - network:
         poll-interval: 1000
         content:
-          <<: *module-wrapper
-          substitute:
-            CONTENT_PLACEHOLDER:
-              map:
-                conditions:
-                  name == wlp1s0:
-                    map:
-                      conditions:
-                        state == up:
-                          list:
-                            items:
-                              - string:
-                                  { text: "", <<: [*segment-style, *accent1] }
-                              - string:
-                                  {
-                                    text: "{ssid}",
-                                    <<: [*segment-style, *primary],
-                                  }
-                              - string:
-                                  {
-                                    text: "{ul-speed:mb} {dl-speed:mb}",
-                                    <<: [*segment-style, *secondary],
-                                  }
-                        state == down:
-                          string:
-                            { text: " OFFLINE", <<: [*segment-style, *alert] }
-
+          list:
+            spacing: 0
+            items:
+              - map:
+                  conditions:
+                    name == lo || name == sit0:
+                      empty:
+                        margin: 0
+                        deco:
+                          border:
+                            size: 0
+                            color: "00000000"
+                    name == enp193s0f3u1:
+                      list:
+                        spacing: 0
+                        items:
+                          - string:
+                              text: " {dl-speed:mb}/{ul-speed:mb}"
+                              <<:
+                                - *catppuccin-sapphire
+                                - *middle
+                          - map:
+                              conditions:
+                                ~carrier:
+                                  string:
+                                    text: " Down"
+                    name == wlp1s0:
+                      list:
+                        spacing: 0
+                        items:
+                          - string:
+                              text: " {ssid} {dl-speed:mb}/{ul-speed:mb}"
+                              <<:
+                                - *catppuccin-sapphire
+                                - *middle
+                  default:
+                    empty:
+                      margin: 0
+                      deco:
+                        border:
+                          size: 0
+                          color: "00000000"
+    - label:
+        content:
+          string: *separator
     - cpu:
         poll-interval: 1000
         content:
-          <<: *module-wrapper
-          substitute:
-            CONTENT_PLACEHOLDER:
-              list:
-                items:
-                  - ramp:
-                      tag: cpu
-                      items:
-                        - string: { text: "", <<: [*segment-style, *accent1] }
-                        - string: { text: "", <<: [*segment-style, *accent2] }
-                        - string: { text: "", <<: [*segment-style, *accent3] }
-                        - string: { text: "", <<: [*segment-style, *alert] }
-                  - string: { text: "{cpu}%", <<: [*segment-style, *primary] }
-
+          map:
+            conditions:
+              id < 0:
+                list:
+                  spacing: 0
+                  items:
+                    - string:
+                        text: ""
+                        <<:
+                          - *catppuccin-pink
+                          - *middle
+                    - ramp:
+                        tag: cpu
+                        items:
+                          - string:
+                              text: " "
+                              <<: *catppuccin-green
+                          - string:
+                              text: " "
+                              <<: *catppuccin-peach
+                          - string:
+                              text: " "
+                              <<: *catppuccin-red
+                    - string:
+                        text: "{cpu}%"
+                        <<:
+                          - *catppuccin-subtext0
+                          - *middle
+    - label:
+        content:
+          string: *separator
     - mem:
         poll-interval: 1000
         content:
-          <<: *module-wrapper
-          substitute:
-            CONTENT_PLACEHOLDER:
-              list:
-                items:
-                  - ramp:
-                      tag: mem
-                      items:
-                        - string: { text: "", <<: [*segment-style, *accent1] }
-                        - string: { text: "", <<: [*segment-style, *accent2] }
-                        - string: { text: "", <<: [*segment-style, *accent3] }
-                        - string: { text: "", <<: [*segment-style, *alert] }
-                  - string:
-                      { text: "{used:0.1f}G", <<: [*segment-style, *primary] }
-
+          list:
+            spacing: 0
+            items:
+              - string:
+                  text: ""
+                  <<:
+                    - *catppuccin-mauve
+                    - *middle
+              - ramp:
+                  tag: mem
+                  items:
+                    - string:
+                        text: " "
+                        <<: *catppuccin-green
+                    - string:
+                        text: " "
+                        <<: *catppuccin-peach
+                    - string:
+                        text: " "
+                        <<: *catppuccin-red
+              - string:
+                  text: "{used:gb}G"
+                  <<:
+                    - *catppuccin-subtext0
+                    - *middle
+    - label:
+        content:
+          string: *separator
+    - backlight:
+        name: amdgpu_bl0
+        content:
+          list:
+            spacing: 0
+            items:
+              - string:
+                  text: ""
+                  <<:
+                    - *catppuccin-blue
+                    - *middle
+              - ramp:
+                  tag: percent
+                  items:
+                    - string:
+                        text: " "
+                        <<: *catppuccin-green
+                    - string:
+                        text: " "
+                        <<: *catppuccin-peach
+                    - string:
+                        text: " "
+                        <<: *catppuccin-red
+              - string:
+                  text: "{percent}%"
+                  <<:
+                    - *catppuccin-subtext0
+                    - *middle
+    - label:
+        content:
+          string: *separator
     - pipewire:
         content:
-          <<: *module-wrapper
-          substitute:
-            CONTENT_PLACEHOLDER:
-              map:
-                conditions:
-                  muted:
-                    string: { text: " MUTED", <<: [*segment-style, *alert] }
-                  cubic_volume < 33:
-                    list:
-                      items:
-                        - string: { text: "", <<: [*segment-style, *accent1] }
-                        - string:
-                            {
-                              text: "{cubic_volume}%",
-                              <<: [*segment-style, *primary],
-                            }
-                  cubic_volume < 66:
-                    list:
-                      items:
-                        - string: { text: "", <<: [*segment-style, *accent2] }
-                        - string:
-                            {
-                              text: "{cubic_volume}%",
-                              <<: [*segment-style, *primary],
-                            }
-                  default:
-                    list:
-                      items:
-                        - string: { text: "", <<: [*segment-style, *accent3] }
-                        - string:
-                            {
-                              text: "{cubic_volume}%",
-                              <<: [*segment-style, *primary],
-                            }
-
+          list:
+            spacing: 0
+            items:
+              - map:
+                  conditions:
+                    type == "sink":
+                      map:
+                        conditions:
+                          form_factor == "speaker":
+                            list:
+                              spacing: 0
+                              items:
+                                - map:
+                                    conditions:
+                                      muted:
+                                        list:
+                                          spacing: 0
+                                          items:
+                                            - string:
+                                                text: ""
+                                                <<:
+                                                  - *catppuccin-red
+                                                  - *middle
+                                            - string:
+                                                text: "{cubic_volume}%"
+                                                <<:
+                                                  - *catppuccin-subtext0
+                                                  - *middle
+                                      ~muted:
+                                        list:
+                                          spacing: 0
+                                          items:
+                                            - string:
+                                                text: ""
+                                                <<:
+                                                  - *catppuccin-blue
+                                                  - *middle
+                                            - string:
+                                                text: "{cubic_volume}%"
+                                                <<:
+                                                  - *catppuccin-subtext0
+                                                  - *middle
+                          form_factor == "headphone":
+                            list:
+                              spacing: 0
+                              items:
+                                - map:
+                                    conditions:
+                                      muted:
+                                        list:
+                                          spacing: 0
+                                          items:
+                                            - string:
+                                                text: ""
+                                                <<:
+                                                  - *catppuccin-red
+                                                  - *middle
+                                            - string:
+                                                text: "{cubic_volume}%"
+                                                <<:
+                                                  - *catppuccin-subtext0
+                                                  - *middle
+                                      ~muted:
+                                        list:
+                                          spacing: 0
+                                          items:
+                                            - string:
+                                                text: ""
+                                                <<:
+                                                  - *catppuccin-blue
+                                                  - *middle
+                                            - string:
+                                                text: "{cubic_volume}%"
+                                                <<:
+                                                  - *catppuccin-subtext0
+                                                  - *middle
+                    type == "source":
+                      list:
+                        spacing: 0
+                        items:
+                          - map:
+                              conditions:
+                                muted:
+                                  list:
+                                    spacing: 0
+                                    items:
+                                      - string:
+                                          text: ""
+                                          <<:
+                                            - *catppuccin-red
+                                            - *middle
+                                      - string:
+                                          text: "MUTED"
+                                          <<:
+                                            - *catppuccin-subtext0
+                                            - *middle
+                                ~muted:
+                                  list:
+                                    spacing: 0
+                                    items:
+                                      - string:
+                                          text: ""
+                                          <<:
+                                            - *catppuccin-green
+                                            - *middle
+                                      - string:
+                                          text: "ON"
+                                          <<:
+                                            - *catppuccin-subtext0
+                                            - *middle
+                    default:
+                      empty:
+                        margin: 0
+                        deco:
+                          border:
+                            size: 0
+                            color: "00000000"
+    - label:
+        content:
+          string: *separator
     - battery:
         name: BAT1
         poll-interval: 30000
         content:
-          <<: *module-wrapper
-          substitute:
-            CONTENT_PLACEHOLDER:
-              map:
-                conditions:
-                  state == charging:
-                    list:
-                      items:
-                        - string: { text: "", <<: [*segment-style, *accent1] }
-                        - string:
-                            {
-                              text: "{capacity}%",
-                              <<: [*segment-style, *primary],
-                            }
-                  default:
-                    list:
-                      items:
-                        - ramp:
-                            tag: capacity
-                            items:
-                              - string:
-                                  { text: "", <<: [*segment-style, *alert] }
-                              - string:
-                                  { text: "", <<: [*segment-style, *accent3] }
-                              - string:
-                                  { text: "", <<: [*segment-style, *accent2] }
-                              - string:
-                                  { text: "", <<: [*segment-style, *accent1] }
-                              - string:
-                                  { text: "", <<: [*segment-style, *accent1] }
-                        - string:
-                            {
-                              text: "{capacity}%",
-                              <<: [*segment-style, *primary],
-                            }
+          map:
+            conditions:
+              state == unknown:
+                list:
+                  spacing: 0
+                  items:
+                    - string:
+                        text: " {capacity}%"
+                        <<:
+                          - *catppuccin-red
+                          - *middle
 
+              state == discharging:
+                list:
+                  spacing: 0
+                  items:
+                    - ramp:
+                        tag: capacity
+                        items:
+                          - string:
+                              text: ""
+                              <<:
+                                - *catppuccin-red
+                                - *middle
+                          - string:
+                              text: ""
+                              <<:
+                                - *catppuccin-peach
+                                - *middle
+                          - string:
+                              text: ""
+                              <<:
+                                - *catppuccin-blue
+                                - *middle
+                          - string:
+                              text: ""
+                              <<:
+                                - *catppuccin-blue
+                                - *middle
+                          - string:
+                              text: ""
+                              <<:
+                                - *catppuccin-green
+                                - *middle
+                    - string:
+                        text: "{capacity}% {estimate}"
+                        <<:
+                          - *catppuccin-subtext0
+                          - *middle
+              state == charging:
+                list:
+                  spacing: 0
+                  items:
+                    - string:
+                        text: ""
+                        <<:
+                          - *catppuccin-blue
+                          - *middle
+                    - string:
+                        text: "{capacity}% {estimate}"
+                        <<:
+                          - *catppuccin-green
+                          - *middle
+              state == full:
+                list:
+                  spacing: 0
+                  items:
+                    - string:
+                        text: " {capacity}%"
+                        <<:
+                          - *catppuccin-green
+                          - *middle
+              state == "not charging":
+                list:
+                  spacing: 0
+                  items:
+                    - ramp:
+                        tag: capacity
+                        items:
+                          - string:
+                              text: ""
+                              <<:
+                                - *catppuccin-red
+                                - *middle
+                          - string:
+                              text: ""
+                              <<:
+                                - *catppuccin-peach
+                                - *middle
+                          - string:
+                              text: ""
+                              <<:
+                                - *catppuccin-blue
+                                - *middle
+                          - string:
+                              text: ""
+                              <<:
+                                - *catppuccin-blue
+                                - *middle
+                          - string:
+                              text: ""
+                              <<:
+                                - *catppuccin-green
+                                - *middle
+                    - string:
+                        text: "{capacity}% {estimate}"
+                        <<:
+                          - *catppuccin-subtext0
+                          - *middle
+    - label:
+        content:
+          string: *separator
     - clock:
-        date-format: "%a %d %b"
+        date-format: "%Y-%m-%d"
         time-format: "%H:%M"
         content:
-          <<: *module-wrapper
-          substitute:
-            CONTENT_PLACEHOLDER:
-              list:
-                items:
-                  - string:
-                      { text: " {date}", <<: [*segment-style, *secondary] }
-                  - string: { text: " {time}", <<: [*segment-style, *primary] }
+          list:
+            spacing: 0
+            items:
+              - string:
+                  text: " {date} {time}"
+                  <<:
+                    - *catppuccin-text
+                    - *middle
