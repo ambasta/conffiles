@@ -358,7 +358,7 @@ bar:
         content:
           string: *separator
     - battery:
-        name: BAT1
+        name: BAT0
         poll-interval: 30000
         content:
           map:

@@ -20,6 +20,6 @@ export VDPAU_DRIVER=radeonsi
 export XKB_DEFAULT_LAYOUT=us
 export ELECTRON_OZONE_PLATFORM_HINT=auto
 
-source /usr/local/bin/wayland_enablement.sh
+. /usr/local/bin/wayland_enablement.sh
 
-systemd-cat --identifier=sway sway $@
+systemd-cat --identifier=sway sway "$@"

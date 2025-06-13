@@ -105,6 +105,6 @@ net-print/cups-meta postscript
 
 
 # PyTorch
-dev-cpp/eigen boost clang fftw hip openmp sparsehash
-llvm-core/clang-runtime openmp
-sys-devel/gcc fortran
+# dev-cpp/eigen boost clang fftw hip openmp sparsehash
+# llvm-core/clang-runtime openmp
+# sys-devel/gcc fortran
