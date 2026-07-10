@@ -1,0 +1,4 @@
+# Dev-build defaults matching the system toolchain philosophy:
+# mold for fast incremental links, native codegen.
+[target.x86_64-unknown-linux-gnu]
+rustflags = ["-C", "link-arg=-fuse-ld=mold", "-C", "target-cpu=native"]
