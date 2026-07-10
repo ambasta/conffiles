@@ -1,0 +1,19 @@
+bar {
+  id 0
+  font pango:Iosevka Term Extended 8
+  position top
+  status_command ~/.config/sway/status.sh
+  separator_symbol "<"
+  status_edge_padding 6
+  status_padding 1
+  pango_markup enabled
+  workspace_buttons no
+    
+  colors {
+    background #00000000
+    statusline #cdd6f4
+    separator #a6adc8ff
+        
+    binding_mode        #fab387 #00000000 #cdd6f4
+  }
+}

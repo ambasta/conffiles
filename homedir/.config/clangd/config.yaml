@@ -1,30 +1,29 @@
-CompileFlags:
-  Add:
-    - "-std=c++23"
-    - "-Wall"
-    - "-Wno-missing-prototypes"
-    - "-Werror"
-    - "-fexperimental-library"
-# - "-D__cpp_concepts=202002L"
-# - "-stdlib=libstdc++"
-If:
-  PathExclude: [.*\.c, .*\.h]
-
+# Global fragment: applies to every file.
 Index:
   Background: Build
 
 Diagnostics:
   ClangTidy:
     Add: [performance*, modernize*, readability*]
+    Remove: [readability-magic-numbers]
     CheckOptions:
       readability-identifier-naming.VariableCase: lower_case
       readability-identifier-naming.PublicMethodCase: lower_case
       readability-identifier-naming.NamespaceCase: lower_case
-      readability-identifier-naming.ClassCase: CamelCase
       readability-identifier-naming.PrivateMemberPrefix: m_
       readability-identifier-naming.PrivateMemberCase: lower_case
-      readability-identifier-naming.StructCase: lower_case
       readability-identifier-naming.FunctionCase: lower_case
       readability-identifier-naming.GlobalConstantCase: UPPER_CASE
       readability-identifier-naming.StaticConstant: UPPER_CASE
       readability-braces-around-statements.ShortStatementLines: 2
+---
+# C++-only flags; plain C sources/headers keep their own defaults.
+If:
+  PathExclude: [.*\.c, .*\.h]
+
+CompileFlags:
+  Add:
+    - "-std=c++23"
+    - "-Wall"
+    - "-Wno-missing-prototypes"
+    - "-fexperimental-library"

@@ -9,9 +9,21 @@ set $right l
 # Your preferred terminal emulator
 set $term foot
 
+# Set color scheme
+set $cl_high #b4befe
+set $cl_indi #9399b2
+set $cl_back #000000
+set $cl_fore #cdd6f4
+set $cl_urge #f38ba8
+
+# Colors                border   bg       text     indi     childborder
+client.focused          $cl_back $cl_high $cl_fore $cl_indi $cl_high
+client.focused_inactive $cl_back $cl_back $cl_fore $cl_back $cl_back
+client.unfocused        $cl_back $cl_back $cl_fore $cl_back $cl_back
+client.urgent           $cl_urge $cl_urge $cl_fore $cl_urge $cl_urge
+
 # Firefox sharing indicator
 for_window [title="Firefox — Sharing Indicator"] floating enable, kill
-
 
 set $menu wmenu-run
 set $browser firefox-bin
@@ -22,10 +34,9 @@ include ~/.config/sway/resolution
 output * adaptive_sync on
 output * max_render_time 1
 output * subpixel rgb
-default_border pixel 5
+default_border pixel 1
 
 include ~/.config/sway/input
-include ~/.config/sway/menuoverride
 
 ### Key bindings
 
@@ -171,6 +182,6 @@ exec_always {
   gsettings set org.gnome.desktop.wm.preferences titlebar-font 'Fira Code Regular 10'
 }
 
-# exec /home/amitprakash/.local/bin/sway_scripts.sh
-exec env RUST_BACKTRACE=1 RUST_LOG=swayr=debug swayrd > /tmp/swayrd.log 2>&1
+exec swayrd
+include ~/.config/sway/bar
 include /etc/sway/config.d/*

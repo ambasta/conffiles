@@ -1,30 +1,36 @@
-# export XDG_CONFIG_HOME=$HOME/.config
-# export XDG_CACHE_HOME=$HOME/.cache
+# Kiro CLI pre block. Keep at the top of this file.
+[[ -f "${HOME}/.local/share/kiro-cli/shell/bashrc.pre.bash" ]] && builtin source "${HOME}/.local/share/kiro-cli/shell/bashrc.pre.bash"
+
 source /etc/profile
+
 export COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 export PYTHONDONTWRITEBYTECODE=1
 
-userid="$(id -u)"
-export SSH_AUTH_SOCK=/run/user/$userid/gcr/ssh
+export SSH_AUTH_SOCK="/run/user/$(id -u)/gcr/ssh"
+eval "$(keychain -q --eval --extended sshk:id_rsa gpgk:F0B27A3B6D7CF774)"
+source "${HOME}/.keychain/${HOSTNAME}-sh"
 
-# keychain ~/.ssh/id_rsa
-eval "$(keychain -q --agents ssh --eval id_rsa)"
-eval "$(keychain -q --eval --agents gpg F0B27A3B6D7CF774)"
-# shellcheck source=/home/amitprakash/.keychain/${HOSTNAME}-sh
-source "/home/amitprakash/.keychain/${HOSTNAME}-sh"
-# shellcheck source=/home/amitprakash/.keychain/${HOSTNAME}-sh-gpg
-source "/home/amitprakash/.keychain/${HOSTNAME}-sh-gpg"
+# Import the systemd user environment (sway session vars etc.), except PATH.
+while IFS= read -r line; do
+  [[ $line == PATH=* ]] && continue
+  export "$line"
+done < <(systemctl --user show-environment)
 
-# source $HOME/.config/environment.d/00-envvars.conf
-# source $HOME/.config/environment.d/01-wayland.conf
+export GOPATH="$HOME/.go"
+export DOCKER_HOST="unix:///run/user/$(id -u)/podman/podman.sock"
+export BUN_INSTALL="$HOME/.bun"
 
-# PS1='\[\033[01;32m\]\u\[\033[00m\]:\[\033[01;34m\]\W\[\033[00m\]\$ '
+PATH="$PATH:$GOPATH/bin:$HOME/.cargo/bin:$HOME/.local/bin:$BUN_INSTALL/bin"
+[[ -d "$HOME/.yarn/bin" ]] && PATH="$PATH:$HOME/.yarn/bin"
+export PATH
 
-eval "$(systemctl --user show-environment | sed 's/^/export /')"
+GITHUB_TOKEN=$(gh auth token 2>/dev/null)
+export GITHUB_TOKEN
 
-# uv
-yarn_binpath="$(yarn global bin)"
-go_path=$HOME/.go
-export GOPATH=$go_path
-go_binpath=$go_path/bin
-export PATH=$PATH:$yarn_binpath:$go_binpath:/home/amitprakash/.cargo/bin:/home/amitprakash/.local/bin
+# Machine-local secrets and overrides (untracked).
+[[ -f "$HOME/.bashrc.local" ]] && source "$HOME/.bashrc.local"
+
+# Kiro CLI post block. Keep at the bottom of this file.
+[[ -f "${HOME}/.local/share/kiro-cli/shell/bashrc.post.bash" ]] && builtin source "${HOME}/.local/share/kiro-cli/shell/bashrc.post.bash"
+
+. "$HOME/.moon/bin/env"

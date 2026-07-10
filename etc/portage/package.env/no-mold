@@ -1,1 +1,4 @@
 www-client/chromium no-mold
+sci-libs/blas-lapack-aux-wrapper no-mold
+sys-apps/fwupd-efi no-mold
+dev-libs/leancrypto no-mold

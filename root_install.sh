@@ -1,17 +1,11 @@
 #!/bin/bash
-for file in $(find etc usr -type f)
-do
-    filepath="/$file"
-    filedir=$(dirname $filepath)
+# Symlink etc/ and usr/ into the root filesystem. Run as root from the repo root.
+set -euo pipefail
 
-    if !( [ -d "$filedir" ] )
-    then
-        mkdir -p $filedir
-    fi
+cd "$(dirname "${BASH_SOURCE[0]}")"
 
-    if [ -f "$filepath" ] || [ -L "$filepath" ]
-    then
-        rm $filepath
-    fi
-    ln -s $(pwd)/${file} $filepath
+find etc usr -type f -print0 | while IFS= read -r -d '' file; do
+	target="/$file"
+	mkdir -p "$(dirname "$target")"
+	ln -sfn "$(pwd)/$file" "$target"
 done

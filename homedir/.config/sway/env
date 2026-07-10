@@ -1,5 +1,0 @@
-IDEA_JDK=%h/.gentoo/java-config-2/current-user-vm
-_JAVA_AWT_WM_NONREPARENTING=1
-XDG_CONFIG_HOME=%h/.config
-XDG_RUNTIME_DIR=/run/user/1000
-RTC_USE_PIPEWIRE=false

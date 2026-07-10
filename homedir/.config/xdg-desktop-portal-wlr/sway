@@ -3,3 +3,4 @@ output_name=eDP-1
 max_fps=144
 chooser_type=simple
 chooser_cmd=slurp -f %o -o
+force_mod_linear=1

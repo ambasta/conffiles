@@ -1,13 +1,8 @@
 app-admin/helm
-app-containers/cri-o
+app-containers/kind
 app-containers/containerd
-sys-cluster/kubeadm
-sys-cluster/kube-apiserver
-sys-cluster/kube-controller-manager
+app-containers/podman
+app-containers/podman-compose
+app-containers/skopeo
+sys-cluster/flux
 sys-cluster/kubectl
-sys-cluster/kubelet
-sys-cluster/kubeletctl
-sys-cluster/kube-proxy
-# sys-cluster/kube-router
-sys-cluster/kube-scheduler
-sys-cluster/minikube

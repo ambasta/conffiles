@@ -1,27 +1,9 @@
-local lspconfig_util = require("lspconfig.util")
-
 return {
   {
     "neovim/nvim-lspconfig",
     opts = {
       servers = {
-        eslint = {
-          root_dir = function(startpath)
-            return vim.fs.dirname(vim.fs.find("yarn.lock", { path = startpath, upward = true })[1])
-          end,
-        },
-        clangd = {
-          mason = false,
-          cmd = {
-            "clangd",
-            "--background-index",
-            "--experimental-modules-support",
-            "--header-insertion=iwyu",
-            "--completion-style=detailed",
-            "--function-arg-placeholders",
-            "--fallback-style=llvm",
-          },
-        },
+        black = false,
         neocmake = {
           cmd = { "neocmakelsp", "--stdio" },
           single_file_support = true,
@@ -34,18 +16,16 @@ return {
             },
           },
         },
-        tsserver = {
-          enabled = false,
-        },
-        ts_ls = {
-          enabled = false,
-        },
-        vtsls = {
-          root_dir = function(startpath)
-            return vim.fs.dirname(vim.fs.find("yarn.lock", { path = startpath, upward = true })[1])
-          end,
+        pyright = false,
+        ruff = {
           settings = {
-            autoUseWorkspaceTsdk = true,
+            configurationPreference = "filesystemFirst",
+          },
+          init_options = {},
+        },
+        tsgo = false,
+        vtsls = {
+          settings = {
             typescript = {
               tsdk = "./.yarn/sdks/typescript/lib",
             },
@@ -58,9 +38,19 @@ return {
     "stevearc/conform.nvim",
     opts = {
       formatters_by_ft = {
-        ["python"] = { "isort", "black" },
+        ["python"] = { "ruff_fix", "ruff_format" },
         ["cmake"] = { "gersemi" },
+        ["sh"] = { "shfmt" },
+      },
+      formatters = {
+        shfmt = {
+          prepend_args = { "-ci", "-bn" },
+        },
       },
     },
+  },
+  {
+    "smjonas/inc-rename.nvim",
+    opts = {},
   },
 }

@@ -27,8 +27,13 @@
 [credential]
 	helper = /usr/bin/git-credential-libsecret
 [http]
-	postBuffer = 524288000
+	postBuffer = 157286400
 [protocol]
 	version = 2
 [cinnabar]
 	version-check = 1713856423
+[filter "lfs"]
+	clean = git-lfs clean -- %f
+	smudge = git-lfs smudge -- %f
+	process = git-lfs filter-process
+	required = true
