@@ -1,0 +1,12 @@
+# Output profiles, applied automatically on hotplug. A profile matches when
+# every currently connected output matches an entry. Modes/positions come from
+# the machine-local ~/.config/sway/resolution; kanshi only toggles panels.
+
+profile mobile {
+	output eDP-1 enable
+}
+
+profile docked {
+	output eDP-1 disable
+	output "Samsung Electric Company Odyssey G93SC HNTW900005" enable
+}

@@ -11,9 +11,10 @@ eval "$(keychain -q --eval --extended sshk:id_rsa gpgk:F0B27A3B6D7CF774)"
 source "${HOME}/.keychain/${HOSTNAME}-sh"
 
 # Import the systemd user environment (sway session vars etc.), except PATH.
+# show-environment shell-quotes values with spaces ($'...'), so eval each line.
 while IFS= read -r line; do
   [[ $line == PATH=* ]] && continue
-  export "$line"
+  eval "export $line"
 done < <(systemctl --user show-environment)
 
 export GOPATH="$HOME/.go"

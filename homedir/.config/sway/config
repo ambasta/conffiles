@@ -36,6 +36,10 @@ output * max_render_time 1
 output * subpixel rgb
 default_border pixel 1
 
+# kanshi turns off the internal panel whenever an external monitor is attached
+# (profiles in ~/.config/kanshi/config).
+exec kanshi
+
 include ~/.config/sway/input
 
 ### Key bindings

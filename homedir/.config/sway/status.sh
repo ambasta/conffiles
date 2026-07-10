@@ -190,7 +190,7 @@ get_network() {
 
         if [[ "$ifname" =~ ^wl ]]; then
           local ssid
-          ssid=$(iwgetid -r "$ifname" 2>/dev/null)
+          ssid=$(iw dev "$ifname" link 2>/dev/null | sed -n 's/^[[:space:]]*SSID: //p')
 
           if [[ -n "$ssid" ]]; then
             status="  $ssid"
