@@ -6,8 +6,6 @@ app-containers/podman wrapper
 app-containers/skopeo rootless
 app-crypt/pinentry gtk
 dev-db/postgresql llvm python threads uuid
-dev-java/openjdk-bin -webstart
-dev-java/openjdk gentoo-vm
 dev-lang/rust rust-analyzer rustfmt rust-src system-bootstrap system-llvm
 dev-lang/python sqlite
 dev-libs/boost -mpi
@@ -22,7 +20,6 @@ media-fonts/iosevka iosevka-ss03 iosevka-ss05
 media-libs/libaom -examples
 media-libs/mesa vulkan-overlay
 media-libs/vulkan-loader layers
-media-sound/pulseaudio -daemon
 media-video/ffmpeg cpudetection libdrm gnutls openh264 opus sdl vpx x264
 media-video/pipewire bluetooth extra gsettings gstreamer ffmpeg pipewire-alsa sound-server
 media-video/mpv -egl lcms zimg
@@ -54,7 +51,6 @@ sys-libs/glibc -multiarch
 sys-kernel/installkernel systemd-boot
 sys-kernel/gentoo-sources experimental symlink
 sys-kernel/linux-firmware savedconfig
-virtual/rust rustfmt
 www-apps/gitea sqlite
 # Firefox forces non-upstream patches to png for apng which break other apps that use system-png
 www-client/firefox clang geckodriver gmp-autoupdate jpegxl mold openh264 pulseaudio pgo system-harfbuzz system-icu system-jpeg system-libevent system-libvpx -system-png system-python-libs system-sqlite screenshot screencast -telemetry
@@ -93,7 +89,6 @@ llvm-runtimes/libcxxabi static-libs
 acct-user/git gitea
 
 # Required for chromium
-virtual/rust profiler
 dev-lang/rust profiler
 
 # Required for app-portage/pfl[network-cron]
