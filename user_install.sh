@@ -20,7 +20,9 @@ find "$DIR/homedir" -type f -print0 | while IFS= read -r -d '' file; do
 done
 
 # Prune symlinks into the repo whose source no longer exists.
-find "$HOME" -xdev -xtype l -print0 2>/dev/null | while IFS= read -r -d '' link; do
+# find exits nonzero on unreadable dirs (e.g. rootless-container storage); that
+# must not fail the script.
+{ find "$HOME" -xdev -xtype l -print0 2>/dev/null || true; } | while IFS= read -r -d '' link; do
 	case "$(readlink "$link")" in
 	"$DIR"/*) rm -v "$link" ;;
 	esac
