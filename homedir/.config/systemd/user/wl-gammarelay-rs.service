@@ -1,0 +1,17 @@
+[Unit]
+Description=Wayland per-output gamma and software brightness relay
+Documentation=https://github.com/MaxVerevkin/wl-gammarelay-rs
+PartOf=sway-session.target
+ConditionFileIsExecutable=/usr/bin/wl-gammarelay-rs
+ConditionEnvironment=WAYLAND_DISPLAY
+
+[Service]
+Type=dbus
+BusName=rs.wl-gammarelay
+ExecStart=/usr/bin/wl-gammarelay-rs run
+ExecStartPost=-%h/.local/bin/display-brightness wait-restore
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=sway-session.target

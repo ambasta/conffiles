@@ -153,8 +153,25 @@ bindsym XF86AudioRaiseVolume exec pactl set-sink-volume @DEFAULT_SINK@ +5%
 bindsym XF86AudioLowerVolume exec pactl set-sink-volume @DEFAULT_SINK@ -5%
 bindsym XF86AudioMute exec pactl set-sink-mute @DEFAULT_SINK@ toggle
 bindsym XF86AudioMicMute exec pactl set-source-mute @DEFAULT_SOURCE@ toggle
-bindsym XF86MonBrightnessDown exec brightnessctl set 5%-
-bindsym XF86MonBrightnessUp exec brightnessctl set +5%
+# The normal brightness keys adjust every active display with its correct
+# backend: brightnessctl for the laptop panel and wl-gammarelay-rs per external
+# output. Shift remains a laptop-panel-only override. Key repeat stays enabled.
+bindsym --locked XF86MonBrightnessDown exec ~/.local/bin/display-brightness auto down
+bindsym --locked XF86MonBrightnessUp exec ~/.local/bin/display-brightness auto up
+bindsym --locked Shift+XF86MonBrightnessDown exec ~/.local/bin/display-brightness internal down
+bindsym --locked Shift+XF86MonBrightnessUp exec ~/.local/bin/display-brightness internal up
+
+# This Keychron K6 exposes its brightness-labelled keys as plain F5/F6 instead
+# of XF86MonBrightnessDown/Up. Scope the aliases to its two keyboard interfaces
+# so F5 remains a normal refresh key on the laptop and other keyboards.
+bindsym --locked --input-device=1452:591:Keychron_Keychron_K6 F5 exec ~/.local/bin/display-brightness auto down
+bindsym --locked --input-device=1452:591:Keychron_Keychron_K6 F6 exec ~/.local/bin/display-brightness auto up
+bindsym --locked --input-device=1452:591:Keychron_Keychron_K6_Keyboard F5 exec ~/.local/bin/display-brightness auto down
+bindsym --locked --input-device=1452:591:Keychron_Keychron_K6_Keyboard F6 exec ~/.local/bin/display-brightness auto up
+bindsym --locked --input-device=1452:591:Keychron_Keychron_K6 Shift+F5 exec ~/.local/bin/display-brightness internal down
+bindsym --locked --input-device=1452:591:Keychron_Keychron_K6 Shift+F6 exec ~/.local/bin/display-brightness internal up
+bindsym --locked --input-device=1452:591:Keychron_Keychron_K6_Keyboard Shift+F5 exec ~/.local/bin/display-brightness internal down
+bindsym --locked --input-device=1452:591:Keychron_Keychron_K6_Keyboard Shift+F6 exec ~/.local/bin/display-brightness internal up
 
 mode "resize" {
     bindsym $left resize shrink width 10 px or 10 ppt

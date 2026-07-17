@@ -9,4 +9,5 @@ profile mobile {
 profile docked {
 	output eDP-1 disable
 	output "Samsung Electric Company Odyssey G93SC HNTW900005" enable
+	exec ~/.local/bin/display-brightness wait-restore
 }
