@@ -1,10 +1,13 @@
 app-crypt/seahorse
+app-misc/jq
 gui-apps/foot
 gui-apps/grim
 gui-apps/mako
 gui-apps/slurp
+gui-apps/swayidle
 gui-apps/swaylock
 gui-apps/wl-clipboard
+gui-apps/wl-gammarelay-rs
 gui-apps/wlgreet
 gui-apps/wmenu
 sys-apps/xdg-desktop-portal-gtk
