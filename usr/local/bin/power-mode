@@ -1,0 +1,246 @@
+#!/bin/bash
+# Apply the normal AC/battery CPU and USB/PCI device policy.
+# Invoked by udev, systemd or root.
+set -uo pipefail
+
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+export PATH
+
+SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+SYSFS_ROOT=${EXTREME_POWERSAVE_SYSFS_ROOT:-/sys}
+RUN_DIR=${EXTREME_POWERSAVE_RUN_DIR:-/run}
+LOCK="$RUN_DIR/extreme-powersave.lock"
+STATE="$RUN_DIR/extreme-powersave.state"
+PENDING="$RUN_DIR/extreme-powersave.pending"
+DEFERRED="$RUN_DIR/extreme-powersave.power-source-dirty"
+INTERNAL=${EXTREME_POWERSAVE_INTERNAL:-0}
+LOCK_HELD=${EXTREME_POWERSAVE_LOCK_HELD:-0}
+CPUFREQ="$SYSFS_ROOT/devices/system/cpu/cpufreq"
+POWERPROFILESCTL=${EXTREME_POWERSAVE_POWERPROFILESCTL:-powerprofilesctl}
+RUNTIME_PM=${EXTREME_POWERSAVE_RUNTIME_PM:-"$SCRIPT_DIR/runtime-power-mode"}
+
+read_value() {
+	local path=$1
+	[[ -r $path ]] || return 1
+	cat "$path"
+}
+
+write_value() {
+	local path=$1 value=$2
+	[[ -w $path ]] || return 1
+	printf '%s\n' "$value" >"$path"
+}
+
+if ((EUID != 0)) && [[ ${EXTREME_POWERSAVE_TESTING:-0} != 1 ]]; then
+	printf 'power-mode: must be run as root\n' >&2
+	exit 1
+fi
+
+mkdir -p "$RUN_DIR"
+if [[ $LOCK_HELD != 1 ]]; then
+	exec 9>"$LOCK"
+	flock 9 || exit 1
+fi
+
+# An AC event must not silently undo an active extreme policy. The extreme
+# toggle uses INTERNAL=1 while holding this same lock for its own transition.
+if [[ $INTERNAL != 1 && ( -e $STATE || -e $PENDING ) ]]; then
+	: >"$DEFERRED"
+	printf 'power-mode: extreme powersave is active; transition deferred\n'
+	exit 0
+fi
+
+ac_online() {
+	local ps type
+	for ps in "$SYSFS_ROOT"/class/power_supply/*/; do
+		[[ -r ${ps}type && -r ${ps}online ]] || continue
+		type=$(cat "${ps}type" 2>/dev/null) || continue
+		case "$type" in
+		Battery | UPS) continue ;;
+		esac
+		[[ $(cat "${ps}online" 2>/dev/null) == 1 ]] && return 0
+	done
+	return 1
+}
+
+cpu_policy_signature() {
+	local policy affected found=0
+	shopt -s nullglob
+	for policy in "$CPUFREQ"/policy[0-9]*; do
+		found=1
+		affected=$(read_value "$policy/affected_cpus" 2>/dev/null) || {
+			shopt -u nullglob
+			return 1
+		}
+		[[ -n $affected && -r $policy/scaling_min_freq && -w $policy/scaling_max_freq &&
+			-w $policy/scaling_governor ]] || {
+			shopt -u nullglob
+			return 1
+		}
+		printf '%s:%s;' "${policy##*/}" "$affected"
+	done
+	shopt -u nullglob
+	((found == 1))
+}
+
+wait_for_cpu_policies() {
+	local attempt signature previous= stable=0
+	for attempt in {1..50}; do
+		if signature=$(cpu_policy_signature); then
+			if [[ $signature == "$previous" ]]; then
+				stable=$((stable + 1))
+				((stable >= 2)) && return 0
+			else
+				previous=$signature
+				stable=0
+			fi
+		else
+			stable=0
+		fi
+		sleep 0.1
+	done
+	printf 'power-mode: CPU frequency policies did not settle\n' >&2
+	return 1
+}
+
+prepare_profile_change() {
+	local policy hwmax errors=0
+	# PPD writes per-policy boost. Linux rejects those writes whenever the
+	# global boost gate is off, including a request to keep local boost off.
+	if ! write_value "$CPUFREQ/boost" 1; then
+		printf 'power-mode: cannot temporarily enable global CPU boost\n' >&2
+		return 1
+	fi
+	shopt -s nullglob
+	for policy in "$CPUFREQ"/policy[0-9]*; do
+		[[ -n $(read_value "$policy/affected_cpus" 2>/dev/null) ]] || continue
+		hwmax=$(read_value "$policy/cpuinfo_max_freq") || {
+			errors=1
+			continue
+		}
+		write_value "$policy/scaling_max_freq" "$hwmax" || errors=1
+	done
+	shopt -u nullglob
+	return "$errors"
+}
+
+set_profile_with_retry() {
+	local wanted=$1 attempt
+	for attempt in {1..20}; do
+		if "$POWERPROFILESCTL" set "$wanted" >/dev/null 2>&1 &&
+			[[ $("$POWERPROFILESCTL" get 2>/dev/null) == "$wanted" ]]; then
+			return 0
+		fi
+		sleep 0.1
+	done
+	return 1
+}
+
+battery_aware_disabled() {
+	local status
+	status=$("$POWERPROFILESCTL" query-battery-aware 2>/dev/null) || return 1
+	[[ $status =~ [Ff]alse[[:space:]]*$ ]]
+}
+
+disable_battery_aware() {
+	local attempt
+	# PPD 0.30 can reject a redundant BatteryAware=false property write. Query
+	# first, and always judge success by the resulting property rather than the
+	# setter's exit status. Retries also cover a daemon startup or D-Bus race.
+	battery_aware_disabled && return 0
+	for attempt in {1..20}; do
+		"$POWERPROFILESCTL" configure-battery-aware --disable >/dev/null 2>&1 || :
+		battery_aware_disabled && return 0
+		sleep 0.1
+	done
+	return 1
+}
+
+mode=${1:-auto}
+if [[ $mode == auto ]]; then
+	if ac_online; then
+		mode=ac
+	else
+		mode=battery
+	fi
+fi
+
+case "$mode" in
+ac | performance | max) mode=performance profile=performance boost=1 cap=cpuinfo_max_freq governor=performance epp=performance runtime_pm=performance ;;
+battery) profile=power-saver boost=0 cap=amd_pstate_lowest_nonlinear_freq governor=powersave epp=power runtime_pm=powersave ;;
+*)
+	printf 'usage: power-mode [performance|max|ac|battery|auto]\n' >&2
+	exit 2
+	;;
+esac
+
+errors=0
+if ! EXTREME_POWERSAVE_LOCK_HELD=1 "$RUNTIME_PM" "$runtime_pm"; then
+	printf 'power-mode: failed to apply %s USB/PCI runtime-PM policy\n' "$runtime_pm" >&2
+	errors=1
+fi
+# This host deliberately uses explicit power-mode transitions. Leaving PPD's
+# battery-aware policy enabled races those transitions during boot, AC changes,
+# and an active extreme session.
+if ! disable_battery_aware; then
+	printf 'power-mode: failed to disable PPD battery-aware overrides\n' >&2
+	errors=1
+fi
+wait_for_cpu_policies || errors=1
+prepare_profile_change || errors=1
+if ! set_profile_with_retry "$profile"; then
+	printf 'power-mode: failed to set profile %s\n' "$profile" >&2
+	errors=1
+fi
+
+if ! write_value "$CPUFREQ/boost" "$boost"; then
+	printf 'power-mode: CPU boost control is unavailable\n' >&2
+	errors=1
+fi
+
+shopt -s nullglob
+policies=0
+for policy in "$CPUFREQ"/policy[0-9]*; do
+	[[ -n $(cat "$policy/affected_cpus" 2>/dev/null) ]] || continue
+	policies=$((policies + 1))
+	if [[ ! -r $policy/$cap || ! -w $policy/scaling_max_freq ]]; then
+		printf 'power-mode: cannot control %s\n' "${policy##*/}" >&2
+		errors=1
+		continue
+	fi
+	expected=$(read_value "$policy/$cap") || {
+		errors=1
+		continue
+	}
+	write_value "$policy/scaling_max_freq" "$expected" || errors=1
+	actual=$(read_value "$policy/scaling_max_freq" 2>/dev/null || printf unknown)
+	if [[ $actual != "$expected" ]]; then
+		printf 'power-mode: %s cap verification failed\n' "${policy##*/}" >&2
+		errors=1
+	fi
+	actual=$(read_value "$policy/scaling_governor" 2>/dev/null || printf unknown)
+	if [[ $actual != "$governor" ]]; then
+		printf 'power-mode: %s governor is %s; expected %s\n' \
+			"${policy##*/}" "$actual" "$governor" >&2
+		errors=1
+	fi
+	if [[ -r $policy/energy_performance_preference ]]; then
+		actual=$(read_value "$policy/energy_performance_preference" 2>/dev/null || printf unknown)
+		if [[ $actual != "$epp" ]]; then
+			printf 'power-mode: %s EPP is %s; expected %s\n' \
+				"${policy##*/}" "$actual" "$epp" >&2
+			errors=1
+		fi
+	fi
+done
+shopt -u nullglob
+((policies > 0)) || {
+	printf 'power-mode: no online CPU policies found\n' >&2
+	errors=1
+}
+
+if [[ $("$POWERPROFILESCTL" get 2>/dev/null) != "$profile" ]]; then
+	printf 'power-mode: profile verification failed\n' >&2
+	errors=1
+fi
+exit "$errors"

@@ -1,0 +1,1104 @@
+#!/bin/bash
+# Toggle privileged extreme power-saving controls, including USB/PCI runtime PM.
+# Run as root.
+#
+# Session-owned controls (display mode/brightness, keyboard light, Bluetooth
+# and idle DPMS) deliberately live in extreme-powersave-user. Wi-Fi power save
+# needs CAP_NET_ADMIN on this machine and is handled here without disconnecting.
+#
+# Usage: extreme-powersave on|off|status
+set -uo pipefail
+
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+export PATH
+umask 077
+
+SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+SYSFS_ROOT=${EXTREME_POWERSAVE_SYSFS_ROOT:-/sys}
+PROCFS_ROOT=${EXTREME_POWERSAVE_PROCFS_ROOT:-/proc}
+RUN_DIR=${EXTREME_POWERSAVE_RUN_DIR:-/run}
+STATE="$RUN_DIR/extreme-powersave.state"
+PENDING="$RUN_DIR/extreme-powersave.pending"
+LOCK="$RUN_DIR/extreme-powersave.lock"
+DEFERRED="$RUN_DIR/extreme-powersave.power-source-dirty"
+RECOVERY="$RUN_DIR/extreme-powersave.recovery"
+POWER_MODE=${EXTREME_POWERSAVE_POWER_MODE:-power-mode}
+RUNTIME_PM=${EXTREME_POWERSAVE_RUNTIME_PM:-"$SCRIPT_DIR/runtime-power-mode"}
+POWERPROFILESCTL=${EXTREME_POWERSAVE_POWERPROFILESCTL:-powerprofilesctl}
+RFKILL=${EXTREME_POWERSAVE_RFKILL:-rfkill}
+UDEVADM=${EXTREME_POWERSAVE_UDEVADM:-udevadm}
+IW=${EXTREME_POWERSAVE_IW:-iw}
+TESTING=${EXTREME_POWERSAVE_TESTING:-0}
+SMT_OFF_FORCE_FAIL=${EXTREME_POWERSAVE_SMT_OFF_FORCE_FAIL:-0}
+ABM_LEVEL=${EXTREME_POWERSAVE_ABM_LEVEL:-4}
+ACTION=${1:-}
+
+CPUFREQ="$SYSFS_ROOT/devices/system/cpu/cpufreq"
+SMT="$SYSFS_ROOT/devices/system/cpu/smt/control"
+SMT_ACTIVE="$SYSFS_ROOT/devices/system/cpu/smt/active"
+ASPM="$SYSFS_ROOT/module/pcie_aspm/parameters/policy"
+
+say() {
+	printf '%s\n' "$*"
+}
+
+warn() {
+	printf 'extreme-powersave: %s\n' "$*" >&2
+}
+
+die() {
+	warn "$*"
+	exit 1
+}
+
+if ((EUID != 0)) && [[ $TESTING != 1 && $ACTION != status ]]; then
+	die "must be run as root"
+fi
+
+if ((EUID == 0)) || [[ $TESTING == 1 ]]; then
+	mkdir -p "$RUN_DIR"
+	exec 9>"$LOCK"
+	flock 9 || die "cannot acquire $LOCK"
+fi
+
+read_value() {
+	local path=$1
+	[[ -r $path ]] || return 1
+	cat "$path"
+}
+
+write_value() {
+	local path=$1 value=$2
+	if [[ ! -w $path ]]; then
+		warn "not writable: $path"
+		return 1
+	fi
+	if ! printf '%s\n' "$value" >"$path"; then
+		warn "failed to write $value to $path"
+		return 1
+	fi
+}
+
+active_aspm() {
+	local value
+	value=$(read_value "$ASPM") || return 1
+	if [[ $value =~ \[([^]]+)\] ]]; then
+		printf '%s\n' "${BASH_REMATCH[1]}"
+	elif [[ $value =~ ^(default|performance|powersave|powersupersave)$ ]]; then
+		printf '%s\n' "$value"
+	fi
+}
+
+current_wifi_power_save() {
+	local interface=$1
+	"$IW" dev "$interface" get power_save 2>/dev/null |
+		awk '/Power save:/ { print $3; exit }'
+}
+
+wifi_phy_identity() {
+	local interface=$1 path
+	path=$(readlink -f "$SYSFS_ROOT/class/net/$interface/phy80211" 2>/dev/null) || return 1
+	[[ -n $path ]] || return 1
+	printf '%s\n' "${path##*/}"
+}
+
+wifi_identity_matches() {
+	local interface=$1 expected=$2 actual
+	actual=$(wifi_phy_identity "$interface") || return 1
+	[[ $actual == "$expected" ]]
+}
+
+set_wifi_power_save() {
+	local interface=$1 wanted=$2 actual
+	if ! "$IW" dev "$interface" set power_save "$wanted"; then
+		warn "failed to set Wi-Fi power save $wanted on $interface"
+		return 1
+	fi
+	actual=$(current_wifi_power_save "$interface")
+	if [[ $actual != "$wanted" ]]; then
+		warn "Wi-Fi power save on $interface is $actual; expected $wanted"
+		return 1
+	fi
+}
+
+state_has_wifi_interface() {
+	local file=$1 interface=$2
+	awk -F '\t' -v interface="$interface" \
+		'$1 == "wifi" && $2 == interface { found = 1 } END { exit !found }' "$file"
+}
+
+# Older v2 snapshots predate root-owned Wi-Fi power saving. Extend an active
+# snapshot atomically before touching a newly discovered interface so repeated
+# `on` gains the new control without losing an exact `off` value.
+capture_missing_wifi_state() {
+	local file=$1 tmp path interface phy value changed=0
+	command -v "$IW" >/dev/null 2>&1 || return 0
+	tmp=$(mktemp "$RUN_DIR/extreme-powersave.state.XXXXXX") || return 1
+	if ! cp -- "$file" "$tmp"; then
+		rm -f "$tmp"
+		return 1
+	fi
+	chmod 600 "$tmp"
+
+	shopt -s nullglob
+	for path in "$SYSFS_ROOT"/class/net/*/wireless; do
+		interface=${path%/wireless}
+		interface=${interface##*/}
+		valid_interface_name "$interface" || continue
+		state_has_wifi_interface "$tmp" "$interface" && continue
+		phy=$(wifi_phy_identity "$interface") || {
+			warn "cannot identify Wi-Fi interface $interface"
+			rm -f "$tmp"
+			shopt -u nullglob
+			return 1
+		}
+		valid_interface_name "$phy" || {
+			warn "invalid Wi-Fi PHY identity for $interface"
+			rm -f "$tmp"
+			shopt -u nullglob
+			return 1
+		}
+		value=$(current_wifi_power_save "$interface")
+		if [[ ! $value =~ ^(on|off)$ ]]; then
+			warn "cannot read Wi-Fi power-save state for $interface"
+			rm -f "$tmp"
+			shopt -u nullglob
+			return 1
+		fi
+		printf 'wifi\t%s\t%s\t%s\n' "$interface" "$value" "$phy" >>"$tmp" || {
+			rm -f "$tmp"
+			shopt -u nullglob
+			return 1
+		}
+		changed=1
+	done
+	shopt -u nullglob
+
+	if ((changed == 0)); then
+		rm -f "$tmp"
+		return 0
+	fi
+	if ! validate_state "$tmp"; then
+		warn "refusing invalid Wi-Fi snapshot extension"
+		rm -f "$tmp"
+		return 1
+	fi
+	mv "$tmp" "$file"
+}
+
+valid_uint() {
+	[[ $1 =~ ^[0-9]+$ ]]
+}
+
+valid_policy_name() {
+	[[ $1 =~ ^policy[0-9]+$ ]]
+}
+
+valid_card_name() {
+	[[ $1 =~ ^card[0-9]+$ ]]
+}
+
+valid_panel_name() {
+	[[ $1 =~ ^card[0-9]+-eDP-[0-9]+$ ]]
+}
+
+valid_interface_name() {
+	[[ $1 =~ ^[A-Za-z0-9_.:-]+$ ]]
+}
+
+panel_power_path() {
+	local panel=$1
+	valid_panel_name "$panel" || return 1
+	printf '%s\n' "$SYSFS_ROOT/class/drm/$panel/amdgpu/panel_power_savings"
+}
+
+state_has_panel() {
+	local file=$1 panel=$2
+	awk -F '\t' -v panel="$panel" \
+		'$1 == "panel-power" && $2 == panel { found = 1 } END { exit !found }' "$file"
+}
+
+# Extend active snapshots created before panel ABM support. The old value is
+# committed atomically before ABM is changed, preserving exact off behavior.
+capture_missing_panel_state() {
+	local file=$1 tmp path panel value changed=0
+	tmp=$(mktemp "$RUN_DIR/extreme-powersave.state.XXXXXX") || return 1
+	if ! cp -- "$file" "$tmp"; then
+		rm -f "$tmp"
+		return 1
+	fi
+	chmod 600 "$tmp"
+
+	shopt -s nullglob
+	for path in "$SYSFS_ROOT"/class/drm/card[0-9]*-eDP-[0-9]*/amdgpu/panel_power_savings; do
+		panel=${path#"$SYSFS_ROOT/class/drm/"}
+		panel=${panel%%/*}
+		valid_panel_name "$panel" || continue
+		state_has_panel "$tmp" "$panel" && continue
+		value=$(read_value "$path") || {
+			warn "cannot read panel power-saving state for $panel"
+			rm -f "$tmp"
+			shopt -u nullglob
+			return 1
+		}
+		if [[ ! $value =~ ^[0-4]$ ]]; then
+			warn "invalid panel power-saving state for $panel: $value"
+			rm -f "$tmp"
+			shopt -u nullglob
+			return 1
+		fi
+		printf 'panel-power\t%s\t%s\n' "$panel" "$value" >>"$tmp" || {
+			rm -f "$tmp"
+			shopt -u nullglob
+			return 1
+		}
+		changed=1
+	done
+	shopt -u nullglob
+
+	if ((changed == 0)); then
+		rm -f "$tmp"
+		return 0
+	fi
+	if ! validate_state "$tmp"; then
+		warn "refusing invalid panel power snapshot extension"
+		rm -f "$tmp"
+		return 1
+	fi
+	mv "$tmp" "$file"
+}
+
+state_format() {
+	local file=$1 first
+	[[ -f $file && ! -L $file ]] || return 1
+	IFS= read -r first <"$file" || return 1
+	if [[ $first == $'meta\tversion\t2' ]]; then
+		printf 'v2\n'
+	elif grep -Eq '^(brightness|kbd|aspm)=' "$file"; then
+		printf 'legacy\n'
+	else
+		printf 'invalid\n'
+	fi
+}
+
+state_value() {
+	local file=$1 kind=$2 key=$3
+	awk -F '\t' -v kind="$kind" -v key="$key" \
+		'$1 == kind && $2 == key { print $3; exit }' "$file"
+}
+
+append_state() {
+	local file=$1
+	shift
+	printf '%s\n' "$*" >>"$file"
+}
+
+capture_state() {
+	local file=$1 path value profile card policy min max governor epp interface phy
+	printf 'meta\tversion\t2\n' >"$file" || return 1
+
+	profile=$("$POWERPROFILESCTL" get 2>/dev/null) || {
+		warn "cannot read the current power profile"
+		return 1
+	}
+	append_state "$file" $'profile\tactive\t'"$profile"
+
+	if value=$(read_value "$SMT"); then
+		append_state "$file" $'smt\tcontrol\t'"$value"
+	fi
+
+	path="$CPUFREQ/boost"
+	if value=$(read_value "$path"); then
+		append_state "$file" $'cpu\tboost\t'"$value"
+	fi
+
+	shopt -s nullglob
+	for path in "$CPUFREQ"/policy[0-9]*; do
+		policy=${path##*/}
+		[[ -n $(read_value "$path/affected_cpus" 2>/dev/null) ]] || continue
+		min=$(read_value "$path/scaling_min_freq") || return 1
+		max=$(read_value "$path/scaling_max_freq") || return 1
+		governor=$(read_value "$path/scaling_governor") || return 1
+		epp=$(read_value "$path/energy_performance_preference" 2>/dev/null || printf '%s' -)
+		printf 'cpu-policy\t%s\t%s\t%s\t%s\t%s\n' \
+			"$policy" "$min" "$max" "$governor" "$epp" >>"$file" || return 1
+	done
+
+	if value=$(active_aspm); then
+		append_state "$file" $'aspm\tpolicy\t'"$value"
+	fi
+
+	for path in "$SYSFS_ROOT"/class/drm/card[0-9]*/device/power_dpm_force_performance_level; do
+		card=${path#"$SYSFS_ROOT/class/drm/"}
+		card=${card%%/*}
+		valid_card_name "$card" || continue
+		value=$(read_value "$path") || continue
+		append_state "$file" $'gpu\t'"$card"$'\t'"$value"
+	done
+	for path in "$SYSFS_ROOT"/class/drm/card[0-9]*-eDP-[0-9]*/amdgpu/panel_power_savings; do
+		card=${path#"$SYSFS_ROOT/class/drm/"}
+		card=${card%%/*}
+		valid_panel_name "$card" || continue
+		value=$(read_value "$path") || continue
+		[[ $value =~ ^[0-4]$ ]] || continue
+		append_state "$file" $'panel-power\t'"$card"$'\t'"$value"
+	done
+
+	for value in laptop_mode dirty_writeback_centisecs; do
+		path="$PROCFS_ROOT/sys/vm/$value"
+		[[ -r $path ]] || continue
+		append_state "$file" $'vm\t'"$value"$'\t'"$(read_value "$path")"
+	done
+
+	for value in power_save power_save_controller; do
+		path="$SYSFS_ROOT/module/snd_hda_intel/parameters/$value"
+		[[ -r $path ]] || continue
+		append_state "$file" $'audio\t'"$value"$'\t'"$(read_value "$path")"
+	done
+
+	if command -v "$IW" >/dev/null 2>&1; then
+		for path in "$SYSFS_ROOT"/class/net/*/wireless; do
+			interface=${path%/wireless}
+			interface=${interface##*/}
+			valid_interface_name "$interface" || continue
+			phy=$(wifi_phy_identity "$interface") || continue
+			valid_interface_name "$phy" || continue
+			value=$(current_wifi_power_save "$interface") || continue
+			[[ $value =~ ^(on|off)$ ]] || continue
+			printf 'wifi\t%s\t%s\t%s\n' "$interface" "$value" "$phy" >>"$file" || return 1
+		done
+	fi
+	shopt -u nullglob
+
+	chmod 600 "$file"
+}
+
+validate_state() {
+	local file=$1 kind key a b c d
+	[[ $(state_format "$file") == v2 ]] || return 1
+	while IFS=$'\t' read -r kind key a b c d; do
+		case "$kind" in
+		meta) [[ $key == version && $a == 2 ]] || return 1 ;;
+		profile) [[ $key == active && $a =~ ^(performance|balanced|power-saver)$ ]] || return 1 ;;
+		smt) [[ $key == control && $a =~ ^(on|off|forceoff|notsupported|notimplemented)$ ]] || return 1 ;;
+		cpu) [[ $key == boost ]] && valid_uint "$a" || return 1 ;;
+		cpu-policy)
+			valid_policy_name "$key" && valid_uint "$a" && valid_uint "$b" &&
+				[[ $c =~ ^[a-zA-Z0-9_-]+$ && $d =~ ^(-|[a-zA-Z0-9_-]+)$ ]] || return 1
+			;;
+			aspm) [[ $key == policy && $a =~ ^(default|performance|powersave|powersupersave)$ ]] || return 1 ;;
+			gpu) valid_card_name "$key" && [[ $a =~ ^[a-zA-Z0-9_-]+$ ]] || return 1 ;;
+			panel-power) valid_panel_name "$key" && [[ $a =~ ^[0-4]$ ]] || return 1 ;;
+		vm)
+			[[ $key =~ ^(laptop_mode|dirty_writeback_centisecs)$ ]] && valid_uint "$a" || return 1
+			;;
+		audio)
+			[[ $key =~ ^(power_save|power_save_controller)$ && $a =~ ^([0-9]+|Y|N)$ ]] || return 1
+			;;
+		wifi)
+			valid_interface_name "$key" && [[ $a =~ ^(on|off)$ ]] &&
+				valid_interface_name "$b" || return 1
+			;;
+		*) return 1 ;;
+		esac
+	done <"$file"
+}
+
+cpu_policy_signature() {
+	local path affected found=0
+	shopt -s nullglob
+	for path in "$CPUFREQ"/policy[0-9]*; do
+		found=1
+		affected=$(read_value "$path/affected_cpus" 2>/dev/null) || {
+			shopt -u nullglob
+			return 1
+		}
+		[[ -n $affected && -r $path/scaling_min_freq && -w $path/scaling_max_freq &&
+			-w $path/scaling_governor ]] || {
+			shopt -u nullglob
+			return 1
+		}
+		printf '%s:%s;' "${path##*/}" "$affected"
+	done
+	shopt -u nullglob
+	((found == 1))
+}
+
+wait_for_cpu_policies() {
+	local attempt signature previous= stable=0
+	if command -v "$UDEVADM" >/dev/null 2>&1; then
+		"$UDEVADM" settle --timeout=5 >/dev/null 2>&1 ||
+			warn "udev did not fully settle after enabling SMT; polling CPU policies"
+	fi
+	for attempt in {1..50}; do
+		if signature=$(cpu_policy_signature); then
+			if [[ $signature == "$previous" ]]; then
+				stable=$((stable + 1))
+				((stable >= 2)) && return 0
+			else
+				previous=$signature
+				stable=0
+			fi
+		else
+			stable=0
+		fi
+		sleep 0.1
+	done
+	warn "CPU frequency policies did not settle"
+	return 1
+}
+
+set_smt_on_for_cpu_policy() {
+	local current
+	if [[ -e $SMT ]]; then
+		current=$(read_value "$SMT") || return 1
+	else
+		wait_for_cpu_policies
+		return
+	fi
+	case "$current" in
+	on) ;;
+	off)
+		write_value "$SMT" on || return 1
+		;;
+	forceoff | notsupported | notimplemented)
+		warn "SMT state '$current' cannot be enabled for profile changes"
+		return 1
+		;;
+	*)
+		# A failed SMT shutdown can leave only some sibling CPUs offline. In
+		# that transitional state the kernel reports a numeric thread count.
+		if valid_uint "$current"; then
+			write_value "$SMT" on || return 1
+		else
+			warn "unknown SMT state: $current"
+			return 1
+		fi
+		;;
+	esac
+	wait_for_cpu_policies || return 1
+	current=$(read_value "$SMT") || return 1
+	if [[ $current != on ]]; then
+		warn "SMT did not return fully online (state: $current)"
+		return 1
+	fi
+}
+
+disable_smt_if_possible() {
+	local attempt current
+	[[ -e $SMT && -w $SMT ]] || {
+		warn "SMT control is unavailable; continuing with SMT enabled"
+		return 2
+	}
+	for attempt in {1..3}; do
+		if [[ $TESTING == 1 && $SMT_OFF_FORCE_FAIL == 1 ]]; then
+			# Model Linux's real partial-hotplug failure: num_threads is
+			# changed first, so control can expose numeric "1" after EBUSY.
+			printf '1\n' >"$SMT"
+		else
+			printf 'off\n' >"$SMT" 2>/dev/null
+		fi
+		current=$(read_value "$SMT" 2>/dev/null || printf unknown)
+		if [[ $current == off ]] &&
+			{ [[ ! -r $SMT_ACTIVE ]] || [[ $(read_value "$SMT_ACTIVE") == 0 ]]; }; then
+			return 0
+		fi
+
+		# cpu_smt_num_threads changes before sibling offlining starts. If a
+		# later CPU hotplug callback returns EBUSY, control can read "1" and
+		# some siblings are already offline; always roll that partial state back.
+		set_smt_on_for_cpu_policy || return 1
+		sleep 0.2
+	done
+	warn "kernel refused to offline an SMT sibling; continuing with SMT enabled"
+	return 2
+}
+
+prepare_profile_change() {
+	local path hwmax errors=0
+	# PPD 0.30 writes each policy's boost control. The kernel rejects those
+	# writes while the global boost gate is disabled, even when writing zero.
+	write_value "$CPUFREQ/boost" 1 || return 1
+	shopt -s nullglob
+	for path in "$CPUFREQ"/policy[0-9]*; do
+		[[ -n $(read_value "$path/affected_cpus" 2>/dev/null) ]] || continue
+		hwmax=$(read_value "$path/cpuinfo_max_freq") || {
+			errors=1
+			continue
+		}
+		write_value "$path/scaling_max_freq" "$hwmax" || errors=1
+	done
+	shopt -u nullglob
+	return "$errors"
+}
+
+set_profile_with_retry() {
+	local profile=$1 attempt
+	for attempt in {1..20}; do
+		if "$POWERPROFILESCTL" set "$profile" >/dev/null 2>&1 &&
+			[[ $("$POWERPROFILESCTL" get 2>/dev/null) == "$profile" ]]; then
+			return 0
+		fi
+		sleep 0.1
+	done
+	warn "failed to set power profile '$profile' after CPU policies settled"
+	return 1
+}
+
+wait_for_policy() {
+	local policy=$1 attempt
+	for attempt in {1..20}; do
+		[[ -r $CPUFREQ/$policy/scaling_max_freq ]] && return 0
+		sleep 0.05
+	done
+	return 1
+}
+
+verify_cpu_target() {
+	local path expected actual governor epp errors=0
+	[[ $("$POWERPROFILESCTL" get 2>/dev/null) == power-saver ]] || {
+		warn "power profile did not reach power-saver"
+		errors=1
+	}
+	if [[ -r $CPUFREQ/boost && $(read_value "$CPUFREQ/boost") != 0 ]]; then
+		warn "CPU boost is still enabled"
+		errors=1
+	fi
+	shopt -s nullglob
+	for path in "$CPUFREQ"/policy[0-9]*; do
+		[[ -n $(read_value "$path/affected_cpus" 2>/dev/null) ]] || continue
+		expected=$(read_value "$path/amd_pstate_lowest_nonlinear_freq") || continue
+		actual=$(read_value "$path/scaling_max_freq") || {
+			errors=1
+			continue
+		}
+		if [[ $actual != "$expected" ]]; then
+			warn "${path##*/} max frequency is $actual; expected $expected"
+			errors=1
+		fi
+		governor=$(read_value "$path/scaling_governor" 2>/dev/null || printf unknown)
+		if [[ $governor != powersave ]]; then
+			warn "${path##*/} governor is $governor; expected powersave"
+			errors=1
+		fi
+		if [[ -r $path/energy_performance_preference ]]; then
+			epp=$(read_value "$path/energy_performance_preference" 2>/dev/null || printf unknown)
+			if [[ $epp != power ]]; then
+				warn "${path##*/} EPP is $epp; expected power"
+				errors=1
+			fi
+		fi
+	done
+	shopt -u nullglob
+	return "$errors"
+}
+
+apply_cpu_target() {
+	local result
+	set_smt_on_for_cpu_policy || return 1
+	EXTREME_POWERSAVE_INTERNAL=1 EXTREME_POWERSAVE_LOCK_HELD=1 \
+		"$POWER_MODE" battery || return 1
+	verify_cpu_target || return 1
+	disable_smt_if_possible
+	result=$?
+	case "$result" in
+	0 | 2) return 0 ;;
+	*) return 1 ;;
+	esac
+}
+
+apply_targets() {
+	local file=$1 kind key saved identity target path errors=0
+	apply_cpu_target || return 1
+
+	while IFS=$'\t' read -r kind key saved identity _; do
+		case "$kind" in
+		aspm)
+			target=powersave
+			[[ $saved == powersupersave ]] && target=powersupersave
+			write_value "$ASPM" "$target" || errors=1
+			;;
+			gpu)
+				path="$SYSFS_ROOT/class/drm/$key/device/power_dpm_force_performance_level"
+				write_value "$path" low || errors=1
+				;;
+			panel-power)
+				path=$(panel_power_path "$key") || {
+					errors=1
+					continue
+				}
+				write_value "$path" "$ABM_LEVEL" || errors=1
+				;;
+		vm)
+			case "$key" in
+			laptop_mode) target=5 ;;
+			dirty_writeback_centisecs) target=6000 ;;
+			esac
+			write_value "$PROCFS_ROOT/sys/vm/$key" "$target" || errors=1
+			;;
+		audio)
+			case "$key" in
+			power_save) target=1 ;;
+			power_save_controller) target=Y ;;
+			esac
+			write_value "$SYSFS_ROOT/module/snd_hda_intel/parameters/$key" "$target" || errors=1
+			;;
+		wifi)
+			if wifi_identity_matches "$key" "$identity"; then
+				set_wifi_power_save "$key" on || errors=1
+			else
+				warn "Wi-Fi interface $key disappeared or changed PHY"
+				errors=1
+			fi
+			;;
+		esac
+	done <"$file"
+	return "$errors"
+}
+
+restore_cpu_state() {
+	local file=$1 profile kind policy min max governor epp path hwmax errors=0
+	set_smt_on_for_cpu_policy || return 1
+	prepare_profile_change || return 1
+
+	profile=$(state_value "$file" profile active)
+	if [[ -n $profile ]] && ! set_profile_with_retry "$profile"; then
+		errors=1
+	fi
+
+	while IFS=$'\t' read -r kind policy min max governor epp; do
+		[[ $kind == cpu-policy ]] || continue
+		valid_policy_name "$policy" || {
+			errors=1
+			continue
+		}
+		wait_for_policy "$policy" || {
+			warn "$policy did not return after enabling SMT"
+			errors=1
+			continue
+		}
+		path="$CPUFREQ/$policy"
+		hwmax=$(read_value "$path/cpuinfo_max_freq" 2>/dev/null || printf '%s' "$max")
+		write_value "$path/scaling_max_freq" "$hwmax" || errors=1
+		write_value "$path/scaling_min_freq" "$min" || errors=1
+		write_value "$path/scaling_max_freq" "$max" || errors=1
+		write_value "$path/scaling_governor" "$governor" || errors=1
+		if [[ $epp != - && -e $path/energy_performance_preference ]]; then
+			write_value "$path/energy_performance_preference" "$epp" || errors=1
+		fi
+	done <"$file"
+
+	if max=$(state_value "$file" cpu boost); [[ -n $max && -e $CPUFREQ/boost ]]; then
+		write_value "$CPUFREQ/boost" "$max" || errors=1
+	fi
+	return "$errors"
+}
+
+restore_v2() {
+	local file=$1 kind key saved identity path saved_smt errors=0
+	validate_state "$file" || {
+		warn "refusing to restore invalid state: $file"
+		return 1
+	}
+
+	restore_cpu_state "$file" || errors=1
+
+	while IFS=$'\t' read -r kind key saved identity _; do
+		case "$kind" in
+		aspm) write_value "$ASPM" "$saved" || errors=1 ;;
+			gpu)
+				path="$SYSFS_ROOT/class/drm/$key/device/power_dpm_force_performance_level"
+			if [[ -e $path ]]; then
+				write_value "$path" "$saved" || errors=1
+			else
+				warn "GPU disappeared before restore: $key"
+				errors=1
+				fi
+				;;
+			panel-power)
+				path=$(panel_power_path "$key") || {
+					errors=1
+					continue
+				}
+				if [[ -e $path ]]; then
+					write_value "$path" "$saved" || errors=1
+				else
+					warn "panel power control disappeared before restore: $key"
+					errors=1
+				fi
+				;;
+		vm) write_value "$PROCFS_ROOT/sys/vm/$key" "$saved" || errors=1 ;;
+		audio)
+			path="$SYSFS_ROOT/module/snd_hda_intel/parameters/$key"
+			if [[ -e $path ]]; then
+				write_value "$path" "$saved" || errors=1
+			else
+				warn "audio control disappeared before restore: $key"
+				errors=1
+			fi
+			;;
+		wifi)
+			if [[ -d $SYSFS_ROOT/class/net/$key/wireless ]] &&
+				wifi_identity_matches "$key" "$identity"; then
+				set_wifi_power_save "$key" "$saved" || errors=1
+			else
+				warn "Wi-Fi interface disappeared or changed PHY before restore: $key"
+				errors=1
+			fi
+			;;
+		esac
+	done <"$file"
+
+	saved_smt=$(state_value "$file" smt control)
+	if [[ -n $saved_smt && $saved_smt =~ ^(on|off)$ ]]; then
+		write_value "$SMT" "$saved_smt" || errors=1
+	fi
+	return "$errors"
+}
+
+legacy_value() {
+	local file=$1 key=$2
+	sed -n "s/^${key}=//p" "$file" | tail -n 1
+}
+
+restore_legacy() {
+	local file=$1 brightness kbd aspm path errors=0
+	warn "restoring legacy state; Bluetooth/GPU/SMT/VM values were not captured and use legacy defaults"
+	brightness=$(legacy_value "$file" brightness)
+	kbd=$(legacy_value "$file" kbd)
+	aspm=$(legacy_value "$file" aspm)
+
+	path="$SYSFS_ROOT/class/backlight/amdgpu_bl0/brightness"
+	if valid_uint "$brightness" && [[ -e $path ]]; then
+		write_value "$path" "$brightness" || errors=1
+	fi
+	path="$SYSFS_ROOT/class/leds/chromeos::kbd_backlight/brightness"
+	if valid_uint "$kbd" && [[ -e $path ]]; then
+		write_value "$path" "$kbd" || errors=1
+	fi
+	if [[ $aspm =~ ^(default|performance|powersave|powersupersave)$ ]]; then
+		write_value "$ASPM" "$aspm" || errors=1
+	fi
+
+	command -v "$RFKILL" >/dev/null && "$RFKILL" unblock bluetooth || errors=1
+	shopt -s nullglob
+	for path in "$SYSFS_ROOT"/class/drm/card[0-9]*/device/power_dpm_force_performance_level; do
+		write_value "$path" auto || errors=1
+	done
+	shopt -u nullglob
+	set_smt_on_for_cpu_policy || errors=1
+	[[ -w $PROCFS_ROOT/sys/vm/laptop_mode ]] && write_value "$PROCFS_ROOT/sys/vm/laptop_mode" 0 || true
+	[[ -w $PROCFS_ROOT/sys/vm/dirty_writeback_centisecs ]] &&
+		write_value "$PROCFS_ROOT/sys/vm/dirty_writeback_centisecs" 1500 || true
+	return "$errors"
+}
+
+force_performance_mode() {
+	local errors=0
+	# `off` is an explicit request for full performance, independent of the
+	# current power source or values captured by `on`. power-mode also disables
+	# USB/PCI runtime PM and publishes that target for later hotplug events.
+	# Reassert device performance independently so an SMT/CPU recovery failure
+	# cannot strand USB/PCI in autosuspend mode.
+	EXTREME_POWERSAVE_LOCK_HELD=1 "$RUNTIME_PM" performance || errors=1
+	set_smt_on_for_cpu_policy || errors=1
+	if ! EXTREME_POWERSAVE_INTERNAL=1 EXTREME_POWERSAVE_LOCK_HELD=1 \
+		"$POWER_MODE" performance; then
+		warn "failed to force full performance mode"
+		errors=1
+	fi
+	if ((errors == 0)); then
+		rm -f "$DEFERRED"
+	fi
+	return "$errors"
+}
+
+status_v2() {
+	local file=$1 kind key saved identity target actual path errors=0 expected governor epp
+	say "extreme powersave: ON"
+
+	actual=$("$POWERPROFILESCTL" get 2>/dev/null || printf unknown)
+	if [[ $actual == power-saver ]]; then
+		say "ok:       profile = $actual"
+	else
+		say "mismatch: profile expected power-saver, got $actual"
+		errors=1
+	fi
+
+	if [[ -r $SMT ]]; then
+		actual=$(read_value "$SMT")
+		case "$actual" in
+		off)
+			if [[ ! -r $SMT_ACTIVE || $(read_value "$SMT_ACTIVE") == 0 ]]; then
+				say "ok:       smt = off"
+			else
+				say "mismatch: smt control is off but sibling threads remain active"
+				errors=1
+			fi
+			;;
+		on) say "unavailable: SMT remained on because CPU hotplug was busy" ;;
+		*)
+			say "mismatch: SMT is partially transitioned ($actual)"
+			errors=1
+			;;
+		esac
+	fi
+	if [[ -r $CPUFREQ/boost ]]; then
+		actual=$(read_value "$CPUFREQ/boost")
+		[[ $actual == 0 ]] && say "ok:       boost = 0" || {
+			say "mismatch: boost expected 0, got $actual"
+			errors=1
+		}
+	fi
+
+	shopt -s nullglob
+	for path in "$CPUFREQ"/policy[0-9]*; do
+		[[ -n $(read_value "$path/affected_cpus" 2>/dev/null) ]] || continue
+		expected=$(read_value "$path/amd_pstate_lowest_nonlinear_freq" 2>/dev/null) || continue
+		actual=$(read_value "$path/scaling_max_freq" 2>/dev/null || printf unknown)
+		if [[ $actual != "$expected" ]]; then
+			say "mismatch: ${path##*/} max expected $expected, got $actual"
+			errors=1
+		fi
+		governor=$(read_value "$path/scaling_governor" 2>/dev/null || printf unknown)
+		if [[ $governor != powersave ]]; then
+			say "mismatch: ${path##*/} governor expected powersave, got $governor"
+			errors=1
+		fi
+		if [[ -r $path/energy_performance_preference ]]; then
+			epp=$(read_value "$path/energy_performance_preference" 2>/dev/null || printf unknown)
+			if [[ $epp != power ]]; then
+				say "mismatch: ${path##*/} EPP expected power, got $epp"
+				errors=1
+			fi
+		fi
+	done
+	shopt -u nullglob
+
+	while IFS=$'\t' read -r kind key saved identity _; do
+		case "$kind" in
+		aspm)
+			target=powersave
+			[[ $saved == powersupersave ]] && target=powersupersave
+			actual=$(active_aspm 2>/dev/null || printf unknown)
+			;;
+			gpu)
+				target=low
+				path="$SYSFS_ROOT/class/drm/$key/device/power_dpm_force_performance_level"
+				actual=$(read_value "$path" 2>/dev/null || printf missing)
+				;;
+			panel-power)
+				target=$ABM_LEVEL
+				path=$(panel_power_path "$key") || {
+					actual=missing
+					continue
+				}
+				actual=$(read_value "$path" 2>/dev/null || printf missing)
+				;;
+		vm)
+			case "$key" in
+			laptop_mode) target=5 ;;
+			dirty_writeback_centisecs) target=6000 ;;
+			esac
+			actual=$(read_value "$PROCFS_ROOT/sys/vm/$key" 2>/dev/null || printf missing)
+			;;
+		audio)
+			case "$key" in
+			power_save) target=1 ;;
+			power_save_controller) target=Y ;;
+			esac
+			actual=$(read_value "$SYSFS_ROOT/module/snd_hda_intel/parameters/$key" 2>/dev/null || printf missing)
+			;;
+		wifi)
+			target=on
+			if wifi_identity_matches "$key" "$identity"; then
+				actual=$(current_wifi_power_save "$key" 2>/dev/null || printf missing)
+			else
+				actual=missing-or-replaced
+			fi
+			;;
+		*) continue ;;
+		esac
+		if [[ $actual == "$target" ]]; then
+			say "ok:       $kind $key = $actual"
+		else
+			say "mismatch: $kind $key expected $target, got $actual"
+			errors=1
+		fi
+	done <"$file"
+
+	if ! "$RUNTIME_PM" status powersave; then
+		errors=1
+	fi
+	return "$errors"
+}
+
+status_mode() {
+	local file format
+	if [[ -e $RECOVERY ]]; then
+		say "extreme powersave: RECOVERY REQUIRED (off transition incomplete)"
+		"$RUNTIME_PM" status || true
+		return 1
+	fi
+	if [[ -e $PENDING ]]; then
+		if [[ ! -r $PENDING ]]; then
+			say "extreme powersave: RECOVERY REQUIRED (details require root)"
+			return 1
+		fi
+		say "extreme powersave: RECOVERY REQUIRED (pending activation)"
+		return 1
+	fi
+	if [[ ! -e $STATE ]]; then
+		say "extreme powersave: OFF"
+		"$RUNTIME_PM" status performance
+		return
+	fi
+	if [[ ! -r $STATE ]]; then
+		say "extreme powersave: ON (details require root)"
+		"$RUNTIME_PM" status powersave
+		return
+	fi
+	format=$(state_format "$STATE") || format=invalid
+	case "$format" in
+	v2) status_v2 "$STATE" ;;
+	legacy)
+		say "extreme powersave: ON (legacy state; exact restore unavailable)"
+		say "run 'extreme-powersave off' once before using the new implementation"
+		return 1
+		;;
+	*)
+		say "extreme powersave: RECOVERY REQUIRED (invalid state)"
+		return 1
+		;;
+	esac
+}
+
+enable_mode() {
+	local tmp format rollback_errors
+	[[ ! -e $RECOVERY ]] || die "an incomplete off transition exists; run 'extreme-powersave off' to recover"
+	if [[ -e $PENDING ]]; then
+		die "a pending activation exists; run 'extreme-powersave off' to recover"
+	fi
+	if [[ -e $STATE ]]; then
+		format=$(state_format "$STATE") || format=invalid
+		case "$format" in
+		v2)
+				validate_state "$STATE" || die "invalid state file: $STATE"
+				capture_missing_wifi_state "$STATE" ||
+					die "failed to add Wi-Fi to the active snapshot"
+				capture_missing_panel_state "$STATE" ||
+					die "failed to add panel power saving to the active snapshot"
+			say "extreme powersave: already ON; reconciling live settings"
+			apply_targets "$STATE" || return 1
+			status_v2 "$STATE"
+			return
+			;;
+		legacy) die "legacy mode is active; run 'extreme-powersave off' once, then 'on'" ;;
+		*) die "invalid state file: $STATE" ;;
+		esac
+	fi
+
+	# With no active/pending state, any marker is left over from an interrupted
+	# older lifecycle and must not affect this new snapshot.
+	rm -f "$DEFERRED"
+	tmp=$(mktemp "$RUN_DIR/extreme-powersave.pending.XXXXXX") || return 1
+	if ! capture_state "$tmp" || ! validate_state "$tmp"; then
+		rm -f "$tmp"
+		warn "failed to capture a complete state snapshot"
+		return 1
+	fi
+	mv "$tmp" "$PENDING" || return 1
+
+	if ! apply_targets "$PENDING"; then
+		warn "activation failed; restoring the captured state"
+		rollback_errors=0
+		restore_v2 "$PENDING" || rollback_errors=1
+		force_performance_mode || rollback_errors=1
+		if ((rollback_errors == 0)); then
+			rm -f "$PENDING"
+		else
+			warn "rollback was incomplete; $PENDING was retained"
+		fi
+		return 1
+	fi
+
+	mv "$PENDING" "$STATE" || return 1
+	say "extreme powersave: ON"
+	say "run 'extreme-powersave-user on' in the Sway session for user-owned controls"
+}
+
+disable_mode() {
+	local file format errors=0
+	if ! printf 'off\n' >"$RECOVERY"; then
+		warn "cannot create off-transition marker: $RECOVERY"
+		return 1
+	fi
+	if [[ -e $PENDING ]]; then
+		file=$PENDING
+	elif [[ -e $STATE ]]; then
+		file=$STATE
+	else
+		if force_performance_mode; then
+			if ! rm -f "$RECOVERY" || [[ -e $RECOVERY ]]; then
+				warn "full performance was applied but $RECOVERY could not be removed"
+				return 1
+			fi
+			say "extreme powersave: already OFF; full performance mode forced"
+			return 0
+		fi
+		return 1
+	fi
+
+	format=$(state_format "$file") || format=invalid
+	case "$format" in
+	v2)
+		restore_v2 "$file" || errors=1
+		force_performance_mode || errors=1
+		if ((errors == 0)); then
+			if ! rm -f "$file" || [[ -e $file ]]; then
+				warn "full performance was applied but $file could not be removed"
+				return 1
+			fi
+			if ! rm -f "$RECOVERY" || [[ -e $RECOVERY ]]; then
+				warn "state was removed but $RECOVERY could not be removed"
+				return 1
+			fi
+			say "extreme powersave: OFF (captured state restored; full performance forced)"
+		else
+			warn "restore incomplete; retained $file for retry"
+			return 1
+		fi
+		;;
+	legacy)
+		restore_legacy "$file" || errors=1
+		force_performance_mode || errors=1
+		if ((errors == 0)); then
+			if ! rm -f "$file" || [[ -e $file ]]; then
+				warn "full performance was applied but $file could not be removed"
+				return 1
+			fi
+			if ! rm -f "$RECOVERY" || [[ -e $RECOVERY ]]; then
+				warn "state was removed but $RECOVERY could not be removed"
+				return 1
+			fi
+			say "extreme powersave: OFF (legacy best-effort restore; full performance forced)"
+		else
+			warn "legacy restore incomplete; retained $file for retry"
+			return 1
+		fi
+		;;
+	*) die "refusing to restore invalid state: $file" ;;
+	esac
+}
+
+[[ $ABM_LEVEL =~ ^[0-4]$ ]] || die "EXTREME_POWERSAVE_ABM_LEVEL must be between 0 and 4"
+
+case ${1:-} in
+on) enable_mode ;;
+off) disable_mode ;;
+status) status_mode ;;
+*)
+	printf 'usage: extreme-powersave on|off|status\n' >&2
+	exit 2
+	;;
+esac

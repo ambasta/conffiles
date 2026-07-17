@@ -1,0 +1,225 @@
+#!/bin/bash
+# Apply the privileged USB/PCI runtime-PM side of the machine power policy.
+# Invoked by power-mode for bulk transitions and by udev for newly added devices.
+set -uo pipefail
+
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+export PATH
+umask 022
+
+SYSFS_ROOT=${EXTREME_POWERSAVE_SYSFS_ROOT:-/sys}
+RUN_DIR=${EXTREME_POWERSAVE_RUN_DIR:-/run}
+STATE="$RUN_DIR/extreme-powersave.state"
+PENDING="$RUN_DIR/extreme-powersave.pending"
+LOCK="$RUN_DIR/extreme-powersave.lock"
+POLICY_FILE="$RUN_DIR/extreme-powersave.runtime-pm-policy"
+LOCK_HELD=${EXTREME_POWERSAVE_LOCK_HELD:-0}
+TESTING=${EXTREME_POWERSAVE_TESTING:-0}
+ACTION=${1:-status}
+
+warn() {
+	printf 'runtime-power-mode: %s\n' "$*" >&2
+}
+
+read_value() {
+	local path=$1
+	[[ -r $path ]] || return 1
+	cat "$path"
+}
+
+# This Framework-specific AMD xHCI controller repeatedly refuses D3hot and
+# floods the kernel journal. Its USB children may still autosuspend normally;
+# only the broken PCI parent must remain in D0 in every policy.
+is_broken_xhci() {
+	local control=$1 device
+	device=${control%/power/control}
+	# Bulk paths arrive through /sys/bus/pci while udev paths arrive through
+	# /sys/devices. Match on PCI identity files rather than either path shape.
+	[[ -r $device/vendor && -r $device/device &&
+		-r $device/subsystem_vendor && -r $device/subsystem_device ]] || return 1
+	[[ $(read_value "$device/vendor" 2>/dev/null) == 0x1022 &&
+		$(read_value "$device/device" 2>/dev/null) == 0x15b9 &&
+		$(read_value "$device/subsystem_vendor" 2>/dev/null) == 0xf111 &&
+		$(read_value "$device/subsystem_device" 2>/dev/null) == 0x0006 ]]
+}
+
+target_for_control() {
+	local policy=$1 control=$2
+	if [[ $policy == performance ]] || is_broken_xhci "$control"; then
+		printf '%s\n' on
+	else
+		printf '%s\n' auto
+	fi
+}
+
+write_control() {
+	local control=$1 wanted=$2 actual
+	[[ -e $control ]] || return 0
+	if [[ ! -w $control ]]; then
+		[[ ! -e $control ]] && return 0
+		warn "not writable: $control"
+		return 1
+	fi
+	actual=$(read_value "$control" 2>/dev/null || printf unknown)
+	if [[ $actual != "$wanted" ]] && ! printf '%s\n' "$wanted" >"$control"; then
+		# USB devices can disappear between glob expansion and the write.
+		[[ ! -e $control ]] && return 0
+		warn "failed to write $wanted to $control"
+		return 1
+	fi
+	actual=$(read_value "$control" 2>/dev/null || printf missing)
+	if [[ $actual != "$wanted" ]]; then
+		[[ ! -e $control ]] && return 0
+		warn "$control is $actual; expected $wanted"
+		return 1
+	fi
+}
+
+persist_policy() {
+	local policy=$1 tmp
+	mkdir -p "$RUN_DIR" || return 1
+	tmp=$(mktemp "$RUN_DIR/extreme-powersave.runtime-pm-policy.XXXXXX") || return 1
+	if ! printf '%s\n' "$policy" >"$tmp"; then
+		rm -f "$tmp"
+		return 1
+	fi
+	chmod 644 "$tmp"
+	mv "$tmp" "$POLICY_FILE"
+}
+
+inferred_policy() {
+	local saved
+	if saved=$(read_value "$POLICY_FILE" 2>/dev/null) &&
+		[[ $saved =~ ^(performance|powersave)$ ]]; then
+		printf '%s\n' "$saved"
+	elif [[ -e $STATE || -e $PENDING ]]; then
+		printf '%s\n' powersave
+	else
+		printf '%s\n' performance
+	fi
+}
+
+apply_bus() {
+	local bus=$1 policy=$2 control wanted errors=0
+	shopt -s nullglob
+	for control in "$SYSFS_ROOT/bus/$bus/devices/"*/power/control; do
+		wanted=$(target_for_control "$policy" "$control")
+		write_control "$control" "$wanted" || errors=1
+	done
+	shopt -u nullglob
+	return "$errors"
+}
+
+apply_policy() {
+	local policy=$1 errors=0
+	# Publish the transition first so a concurrently added device follows the
+	# new target rather than the state file that is about to be committed/removed.
+	persist_policy "$policy" || {
+		warn "cannot publish runtime-PM policy"
+		return 1
+	}
+	if [[ $policy == performance ]]; then
+		# Wake/hold PCI parents before their USB children.
+		apply_bus pci "$policy" || errors=1
+		apply_bus usb "$policy" || errors=1
+	else
+		# Let USB children idle before allowing their PCI parents to suspend.
+		apply_bus usb "$policy" || errors=1
+		apply_bus pci "$policy" || errors=1
+	fi
+	return "$errors"
+}
+
+apply_udev_device() {
+	local policy control wanted
+	[[ ${DEVPATH:-} == /devices/* && ${DEVPATH:-} != *..* ]] || return 0
+	control="$SYSFS_ROOT$DEVPATH/power/control"
+	[[ -e $control ]] || return 0
+	policy=$(inferred_policy)
+	wanted=$(target_for_control "$policy" "$control")
+	write_control "$control" "$wanted"
+}
+
+status_policy() {
+	local policy=$1 bus control wanted actual published total=0 correct=0 protected=0 errors=0
+	published=$(read_value "$POLICY_FILE" 2>/dev/null || printf missing)
+	if [[ $published != "$policy" ]]; then
+		warn "published policy is $published; expected $policy (future hotplug would be wrong)"
+		errors=1
+	fi
+	for bus in usb pci; do
+		shopt -s nullglob
+		for control in "$SYSFS_ROOT/bus/$bus/devices/"*/power/control; do
+			total=$((total + 1))
+			wanted=$(target_for_control "$policy" "$control")
+			actual=$(read_value "$control" 2>/dev/null || printf missing)
+			is_broken_xhci "$control" && protected=$((protected + 1))
+			if [[ $actual == "$wanted" ]]; then
+				correct=$((correct + 1))
+			else
+				warn "mismatch: $control is $actual; expected $wanted"
+				errors=1
+			fi
+		done
+		shopt -u nullglob
+	done
+	if ((errors == 0)); then
+		printf 'ok:       runtime PM = %s (%d/%d devices; %d protected exception)\n' \
+			"$policy" "$correct" "$total" "$protected"
+	else
+		printf 'mismatch: runtime PM expected %s (%d/%d devices match; published %s)\n' \
+			"$policy" "$correct" "$total" "$published"
+	fi
+	return "$errors"
+}
+
+case "$ACTION" in
+performance | powersave)
+	if ((EUID != 0)) && [[ $TESTING != 1 ]]; then
+		warn "must be run as root"
+		exit 1
+	fi
+	mkdir -p "$RUN_DIR"
+	if [[ $LOCK_HELD != 1 ]]; then
+		exec 9>"$LOCK"
+		flock 9 || exit 1
+	fi
+	apply_policy "$ACTION"
+	;;
+current)
+	if ((EUID != 0)) && [[ $TESTING != 1 ]]; then
+		warn "must be run as root"
+		exit 1
+	fi
+	mkdir -p "$RUN_DIR"
+	if [[ $LOCK_HELD != 1 ]]; then
+		exec 9>"$LOCK"
+		flock 9 || exit 1
+	fi
+	apply_policy "$(inferred_policy)"
+	;;
+udev)
+	if ((EUID != 0)) && [[ $TESTING != 1 ]]; then
+		warn "must be run as root"
+		exit 1
+	fi
+	mkdir -p "$RUN_DIR"
+	if [[ $LOCK_HELD != 1 ]]; then
+		exec 9>"$LOCK"
+		flock 9 || exit 1
+	fi
+	apply_udev_device
+	;;
+status)
+	policy=${2:-$(inferred_policy)}
+	[[ $policy =~ ^(performance|powersave)$ ]] || {
+		warn "invalid expected policy: $policy"
+		exit 2
+	}
+	status_policy "$policy"
+	;;
+*)
+	printf 'usage: runtime-power-mode performance|powersave|current|udev|status [performance|powersave]\n' >&2
+	exit 2
+	;;
+esac

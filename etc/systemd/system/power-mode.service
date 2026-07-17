@@ -1,0 +1,11 @@
+[Unit]
+Description=Force the normal full-performance CPU and device policy
+After=power-profiles-daemon.service systemd-tmpfiles-setup.service
+Wants=power-profiles-daemon.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/power-mode performance
+
+[Install]
+WantedBy=multi-user.target

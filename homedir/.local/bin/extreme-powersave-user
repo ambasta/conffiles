@@ -1,0 +1,589 @@
+#!/bin/bash
+# Toggle power-saving controls owned by the interactive user session.
+# Pair with the privileged `extreme-powersave` toggle when desired.
+#
+# Usage: extreme-powersave-user on|off|status
+set -uo pipefail
+
+umask 077
+
+SYSFS_ROOT=${EXTREME_POWERSAVE_USER_SYSFS_ROOT:-/sys}
+RUNTIME_ROOT=${EXTREME_POWERSAVE_USER_RUN_DIR:-${XDG_RUNTIME_DIR:-}}
+TESTING=${EXTREME_POWERSAVE_USER_TESTING:-0}
+BRIGHTNESS_PERCENT=${EXTREME_POWERSAVE_BRIGHTNESS_PERCENT:-20}
+IDLE_SECONDS=${EXTREME_POWERSAVE_IDLE_SECONDS:-300}
+SUSPEND_SECONDS=${EXTREME_POWERSAVE_SUSPEND_SECONDS:-0}
+
+SWAYMSG=${EXTREME_POWERSAVE_SWAYMSG:-swaymsg}
+SWAYIDLE=${EXTREME_POWERSAVE_SWAYIDLE:-swayidle}
+SWAYLOCK=${EXTREME_POWERSAVE_SWAYLOCK:-swaylock}
+RFKILL=${EXTREME_POWERSAVE_RFKILL:-rfkill}
+
+STATE_DIR="$RUNTIME_ROOT/extreme-powersave-user"
+STATE="$STATE_DIR/state"
+PENDING="$STATE_DIR/pending"
+LOCK="$STATE_DIR/lock"
+ROOT_STATE=${EXTREME_POWERSAVE_ROOT_STATE:-/run/extreme-powersave.state}
+
+say() {
+	printf '%s\n' "$*"
+}
+
+warn() {
+	printf 'extreme-powersave-user: %s\n' "$*" >&2
+}
+
+die() {
+	warn "$*"
+	exit 1
+}
+
+valid_uint() {
+	[[ $1 =~ ^[0-9]+$ ]]
+}
+
+valid_name() {
+	[[ $1 =~ ^[A-Za-z0-9_.:-]+$ ]]
+}
+
+valid_uuid() {
+	[[ $1 =~ ^[0-9a-fA-F-]{32,36}$ ]]
+}
+
+if ((EUID == 0)) && [[ $TESTING != 1 ]]; then
+	die "must run as the desktop user, not root"
+fi
+[[ -n $RUNTIME_ROOT && -d $RUNTIME_ROOT && -w $RUNTIME_ROOT ]] ||
+	die "XDG_RUNTIME_DIR is unavailable"
+valid_uint "$IDLE_SECONDS" || die "EXTREME_POWERSAVE_IDLE_SECONDS must be an integer"
+valid_uint "$SUSPEND_SECONDS" || die "EXTREME_POWERSAVE_SUSPEND_SECONDS must be an integer"
+valid_uint "$BRIGHTNESS_PERCENT" && ((BRIGHTNESS_PERCENT >= 1 && BRIGHTNESS_PERCENT <= 100)) ||
+	die "EXTREME_POWERSAVE_BRIGHTNESS_PERCENT must be between 1 and 100"
+
+if [[ -e $STATE_DIR && -L $STATE_DIR ]]; then
+	die "refusing symlinked state directory: $STATE_DIR"
+fi
+mkdir -p "$STATE_DIR"
+chmod 700 "$STATE_DIR"
+[[ $(stat -c %u "$STATE_DIR") == "$EUID" ]] || die "state directory has the wrong owner"
+exec 9>"$LOCK"
+flock 9 || die "cannot acquire $LOCK"
+
+require_session() {
+	[[ -n ${SWAYSOCK:-} ]] || {
+		warn "SWAYSOCK is not set"
+		return 1
+	}
+	"$SWAYMSG" -t get_version -r >/dev/null 2>&1 || {
+		warn "cannot reach the Sway IPC socket"
+		return 1
+	}
+}
+
+legacy_root_mode_active() {
+	local first
+	[[ -r $ROOT_STATE ]] || return 1
+	IFS= read -r first <"$ROOT_STATE" || return 1
+	[[ $first != $'meta\tversion\t2' ]] && grep -Eq '^(brightness|kbd|aspm)=' "$ROOT_STATE"
+}
+
+read_value() {
+	local path=$1
+	[[ -r $path ]] || return 1
+	cat "$path"
+}
+
+write_value() {
+	local path=$1 value=$2
+	if [[ ! -w $path ]]; then
+		warn "not writable: $path"
+		return 1
+	fi
+	if ! printf '%s\n' "$value" >"$path"; then
+		warn "failed to write $value to $path"
+		return 1
+	fi
+}
+
+state_format() {
+	local file=$1 first
+	[[ -f $file && ! -L $file && -r $file ]] || return 1
+	[[ $(stat -c %u "$file") == "$EUID" ]] || return 1
+	[[ $(stat -c %a "$file") == 600 ]] || return 1
+	IFS= read -r first <"$file" || return 1
+	[[ $first == $'meta\tversion\t1' ]] && printf 'v1\n' || printf 'invalid\n'
+}
+
+state_value() {
+	local file=$1 kind=$2 key=$3
+	awk -F '\t' -v kind="$kind" -v key="$key" \
+		'$1 == kind && $2 == key { print $3; exit }' "$file"
+}
+
+current_boot_id() {
+	cat "$SYSFS_ROOT/kernel/random/boot_id" 2>/dev/null || printf 'unknown\n'
+}
+
+format_mode() {
+	local width=$1 height=$2 refresh=$3
+	printf '%sx%s@%s.%03dHz' "$width" "$height" "$((refresh / 1000))" "$((refresh % 1000))"
+}
+
+capture_outputs() {
+	local json=$1
+	jq -r '
+		.[]
+		| select(.active == true and .current_mode != null)
+		| select(.name | test("^eDP([-.]|$)"))
+		| . as $output
+		| ([.modes[]
+		    | select(.width == $output.current_mode.width)
+		    | select(.height == $output.current_mode.height)
+		    | select(.refresh >= 59000 and .refresh <= 61000)]
+		   | sort_by(.refresh) | first) as $low
+		| ["output", .name, (.power | tostring),
+		   (.current_mode.width | tostring),
+		   (.current_mode.height | tostring),
+		   (.current_mode.refresh | tostring),
+		   (if .current_mode.refresh > 61000 and $low != null
+		    then ($low.refresh | tostring)
+		    else (.current_mode.refresh | tostring) end)]
+		| @tsv
+	' <<<"$json"
+}
+
+capture_state() {
+	local file=$1 path name value max output_json rfkill_rows id device type soft
+	printf 'meta\tversion\t1\n' >"$file" || return 1
+	printf 'meta\tboot-id\t%s\n' "$(current_boot_id)" >>"$file" || return 1
+	printf 'meta\tswaysock\t%s\n' "${SWAYSOCK:-none}" >>"$file" || return 1
+
+	shopt -s nullglob
+	for path in "$SYSFS_ROOT"/class/backlight/*; do
+		name=${path##*/}
+		valid_name "$name" || continue
+		[[ -w $path/brightness ]] || continue
+		value=$(read_value "$path/brightness") || continue
+		max=$(read_value "$path/max_brightness") || continue
+		printf 'backlight\t%s\t%s\t%s\n' "$name" "$value" "$max" >>"$file" || return 1
+	done
+	for path in "$SYSFS_ROOT"/class/leds/*kbd_backlight*; do
+		name=${path##*/}
+		valid_name "$name" || continue
+		[[ -w $path/brightness ]] || continue
+		value=$(read_value "$path/brightness") || continue
+		printf 'keyboard\t%s\t%s\n' "$name" "$value" >>"$file" || return 1
+	done
+	shopt -u nullglob
+
+	output_json=$("$SWAYMSG" -t get_outputs -r) || return 1
+	capture_outputs "$output_json" >>"$file" || return 1
+
+	if command -v "$RFKILL" >/dev/null 2>&1; then
+		rfkill_rows=$("$RFKILL" --raw --noheadings --output ID,DEVICE,TYPE,SOFT list bluetooth 2>/dev/null) || {
+			warn "cannot read Bluetooth rfkill state"
+			return 1
+		}
+		while read -r id device type soft; do
+			[[ -n $id ]] || continue
+			[[ $type == bluetooth ]] || continue
+			valid_uint "$id" && valid_name "$device" && [[ $soft =~ ^(blocked|unblocked)$ ]] || continue
+			printf 'rfkill\t%s\t%s\t%s\n' "$id" "$device" "$soft" >>"$file" || return 1
+		done <<<"$rfkill_rows"
+	fi
+
+	chmod 600 "$file"
+}
+
+validate_state() {
+	local file=$1 kind key a b c d e
+	[[ $(state_format "$file") == v1 ]] || return 1
+	while IFS=$'\t' read -r kind key a b c d e; do
+		case "$kind" in
+		meta)
+			case "$key" in
+			version) [[ $a == 1 ]] || return 1 ;;
+			boot-id | swaysock) [[ -n $a ]] || return 1 ;;
+			*) return 1 ;;
+			esac
+			;;
+		backlight) valid_name "$key" && valid_uint "$a" && valid_uint "$b" || return 1 ;;
+		keyboard) valid_name "$key" && valid_uint "$a" || return 1 ;;
+		output)
+			valid_name "$key" && [[ $a =~ ^(true|false)$ ]] && valid_uint "$b" &&
+				valid_uint "$c" && valid_uint "$d" && valid_uint "$e" || return 1
+			;;
+		rfkill)
+			valid_uint "$key" && valid_name "$a" && [[ $b =~ ^(blocked|unblocked)$ ]] || return 1
+			;;
+		wifi)
+			valid_name "$key" && valid_uuid "$a" && [[ $b =~ ^(on|off)$ ]] || return 1
+			;;
+		idle) valid_uint "$key" && valid_uint "$a" || return 1 ;;
+		*) return 1 ;;
+		esac
+	done <"$file"
+}
+
+same_session() {
+	local file=$1 boot socket
+	boot=$(state_value "$file" meta boot-id)
+	socket=$(state_value "$file" meta swaysock)
+	[[ $boot == "$(current_boot_id)" && $socket == "${SWAYSOCK:-none}" ]]
+}
+
+set_output_mode() {
+	local name=$1 width=$2 height=$3 refresh=$4 mode
+	mode=$(format_mode "$width" "$height" "$refresh")
+	"$SWAYMSG" -q output "$name" mode "$mode"
+}
+
+output_refresh() {
+	local name=$1
+	"$SWAYMSG" -t get_outputs -r 2>/dev/null |
+		jq -r --arg name "$name" '.[] | select(.name == $name) | .current_mode.refresh // empty' | head -n 1
+}
+
+rfkill_identity_matches() {
+	local id=$1 expected=$2 current_id device type soft
+	while read -r current_id device type soft; do
+		[[ $current_id == "$id" && $device == "$expected" && $type == bluetooth ]] && return 0
+	done < <("$RFKILL" --raw --noheadings --output ID,DEVICE,TYPE,SOFT list "$id" 2>/dev/null)
+	return 1
+}
+
+apply_user_targets() {
+	local file=$1 kind key a b c d e target path actual errors=0
+	while IFS=$'\t' read -r kind key a b c d e; do
+		case "$kind" in
+		backlight)
+			target=$((b * BRIGHTNESS_PERCENT / 100))
+			((a < target)) && target=$a
+			path="$SYSFS_ROOT/class/backlight/$key/brightness"
+			write_value "$path" "$target" || errors=1
+			;;
+		keyboard)
+			path="$SYSFS_ROOT/class/leds/$key/brightness"
+			write_value "$path" 0 || errors=1
+			;;
+		output)
+			# Fields: power, width, height, saved refresh, target refresh.
+			if [[ $e != "$d" ]]; then
+				set_output_mode "$key" "$b" "$c" "$e" || errors=1
+				actual=$(output_refresh "$key" 2>/dev/null || printf missing)
+				if [[ $actual != "$e" ]]; then
+					warn "output $key refresh is $actual; expected $e"
+					errors=1
+				fi
+			fi
+			;;
+		rfkill)
+			if rfkill_identity_matches "$key" "$a"; then
+				"$RFKILL" block "$key" || errors=1
+				actual=$("$RFKILL" --raw --noheadings --output SOFT list "$key" 2>/dev/null | head -n 1)
+				if [[ $actual != blocked ]]; then
+					warn "Bluetooth device $key did not block"
+					errors=1
+				fi
+			else
+				warn "Bluetooth device $key changed identity"
+				errors=1
+			fi
+			;;
+		wifi)
+			# Compatibility with a v1 snapshot created by an older helper. New
+			# snapshots omit Wi-Fi because the privileged root toggle owns the
+			# runtime iw control without modifying or reconnecting this session.
+			warn "legacy Wi-Fi record for $key left unchanged; root toggle now owns it"
+			;;
+		esac
+	done <"$file"
+	return "$errors"
+}
+
+proc_starttime() {
+	local pid=$1
+	[[ -r /proc/$pid/stat ]] || return 1
+	awk '{ print $22 }' "/proc/$pid/stat"
+}
+
+owned_idle_alive() {
+	local pid=$1 start=$2 exe uid
+	valid_uint "$pid" && valid_uint "$start" || return 1
+	[[ -d /proc/$pid ]] || return 1
+	[[ $(proc_starttime "$pid" 2>/dev/null) == "$start" ]] || return 1
+	uid=$(stat -c %u "/proc/$pid" 2>/dev/null) || return 1
+	[[ $uid == "$EUID" ]] || return 1
+	exe=$(readlink -f "/proc/$pid/exe" 2>/dev/null) || return 1
+	[[ ${exe##*/} == swayidle ]]
+}
+
+state_idle_alive() {
+	local file=$1 kind pid start
+	while IFS=$'\t' read -r kind pid start _; do
+		[[ $kind == idle ]] || continue
+		owned_idle_alive "$pid" "$start" && return 0
+	done <"$file"
+	return 1
+}
+
+replace_idle_record() {
+	local file=$1 pid=${2:-} start=${3:-} tmp
+	tmp=$(mktemp "$STATE_DIR/state.XXXXXX") || return 1
+	awk -F '\t' '$1 != "idle"' "$file" >"$tmp" || {
+		rm -f "$tmp"
+		return 1
+	}
+	if [[ -n $pid ]]; then
+		printf 'idle\t%s\t%s\n' "$pid" "$start" >>"$tmp" || return 1
+	fi
+	chmod 600 "$tmp"
+	mv "$tmp" "$file"
+}
+
+start_idle_helper() {
+	local file=$1 kind name power width height saved_refresh target_refresh off_cmd= on_cmd= pid start
+	((IDLE_SECONDS > 0)) || return 0
+	command -v "$SWAYIDLE" >/dev/null 2>&1 || {
+		warn "swayidle is unavailable; idle DPMS was not enabled"
+		return 0
+	}
+
+	while IFS=$'\t' read -r kind name power width height saved_refresh target_refresh; do
+		[[ $kind == output ]] || continue
+		off_cmd+="${off_cmd:+; }$SWAYMSG -q output $name power off"
+		on_cmd+="${on_cmd:+; }$SWAYMSG -q output $name power on"
+	done <"$file"
+	[[ -n $off_cmd ]] || return 0
+	if command -v "$SWAYLOCK" >/dev/null 2>&1; then
+		off_cmd="$SWAYLOCK -f && $off_cmd"
+	fi
+
+	local -a args=(-w timeout "$IDLE_SECONDS" "$off_cmd" resume "$on_cmd")
+	if ((SUSPEND_SECONDS > 0)); then
+		args+=(timeout "$SUSPEND_SECONDS" "systemctl suspend")
+	fi
+	if command -v "$SWAYLOCK" >/dev/null 2>&1; then
+		args+=(before-sleep "$SWAYLOCK -f")
+	fi
+
+	"$SWAYIDLE" "${args[@]}" >"$STATE_DIR/swayidle.log" 2>&1 &
+	pid=$!
+	sleep 0.1
+	if ! kill -0 "$pid" 2>/dev/null; then
+		warn "swayidle exited during startup"
+		return 1
+	fi
+	start=$(proc_starttime "$pid") || return 1
+	replace_idle_record "$file" "$pid" "$start" || return 1
+	disown "$pid" 2>/dev/null || true
+}
+
+stop_idle_helper() {
+	local file=$1 kind pid start attempt errors=0
+	while IFS=$'\t' read -r kind pid start _; do
+		[[ $kind == idle ]] || continue
+		if owned_idle_alive "$pid" "$start"; then
+			kill -TERM "$pid" || errors=1
+			for attempt in {1..20}; do
+				kill -0 "$pid" 2>/dev/null || break
+				sleep 0.1
+			done
+			if kill -0 "$pid" 2>/dev/null; then
+				warn "owned swayidle process $pid did not exit"
+				errors=1
+			fi
+		elif [[ -d /proc/$pid ]]; then
+			warn "not signaling reused or foreign PID $pid"
+		fi
+	done <"$file"
+	return "$errors"
+}
+
+restore_user_state() {
+	local file=$1 kind key saved a b c d path setting errors=0
+	validate_state "$file" || {
+		warn "refusing to restore invalid state: $file"
+		return 1
+	}
+	stop_idle_helper "$file" || errors=1
+
+	while IFS=$'\t' read -r kind key saved a b c d; do
+		case "$kind" in
+		backlight)
+			path="$SYSFS_ROOT/class/backlight/$key/brightness"
+			[[ -e $path ]] && write_value "$path" "$saved" || errors=1
+			;;
+		keyboard)
+			path="$SYSFS_ROOT/class/leds/$key/brightness"
+			[[ -e $path ]] && write_value "$path" "$saved" || errors=1
+			;;
+		output)
+			if ! same_session "$file"; then
+				warn "Sway session changed; cannot restore output $key"
+				errors=1
+				continue
+			fi
+			"$SWAYMSG" -q output "$key" power on || errors=1
+			set_output_mode "$key" "$a" "$b" "$c" || errors=1
+			if [[ $saved == false ]]; then
+				"$SWAYMSG" -q output "$key" power off || errors=1
+			fi
+			;;
+		rfkill)
+			if rfkill_identity_matches "$key" "$saved"; then
+				[[ $a == blocked ]] && setting=block || setting=unblock
+				"$RFKILL" "$setting" "$key" || errors=1
+			else
+				warn "Bluetooth device $key disappeared or changed identity"
+				errors=1
+			fi
+			;;
+		wifi)
+			warn "legacy Wi-Fi record for $key left unchanged; root toggle now owns it"
+			;;
+		esac
+	done <"$file"
+	return "$errors"
+}
+
+status_v1() {
+	local file=$1 kind key saved a b c d path actual target errors=0
+	say "extreme userspace powersave: ON"
+	while IFS=$'\t' read -r kind key saved a b c d; do
+		case "$kind" in
+		backlight)
+			target=$((a * BRIGHTNESS_PERCENT / 100))
+			((saved < target)) && target=$saved
+			actual=$(read_value "$SYSFS_ROOT/class/backlight/$key/brightness" 2>/dev/null || printf missing)
+			;;
+		keyboard)
+			target=0
+			actual=$(read_value "$SYSFS_ROOT/class/leds/$key/brightness" 2>/dev/null || printf missing)
+			;;
+		output)
+			target=$d
+			actual=$(output_refresh "$key" 2>/dev/null || printf missing)
+			;;
+		rfkill)
+			target=blocked
+			actual=$("$RFKILL" --raw --noheadings --output SOFT list "$key" 2>/dev/null | head -n 1)
+			;;
+		wifi)
+			continue
+			;;
+		idle)
+			target=running
+			owned_idle_alive "$key" "$saved" && actual=running || actual=stopped
+			;;
+		*) continue ;;
+		esac
+		if [[ $actual == "$target" ]]; then
+			say "ok:       $kind $key = $actual"
+		else
+			say "mismatch: $kind $key expected $target, got $actual"
+			errors=1
+		fi
+	done <"$file"
+	if ! grep -q $'^idle\t' "$file" && grep -q $'^output\t' "$file"; then
+		if command -v "$SWAYIDLE" >/dev/null 2>&1 && ((IDLE_SECONDS > 0)); then
+			say "mismatch: idle helper is not running"
+			errors=1
+		else
+			say "unavailable: swayidle idle policy"
+		fi
+	fi
+	return "$errors"
+}
+
+enable_mode() {
+	local tmp format
+	require_session || return 1
+	legacy_root_mode_active &&
+		die "legacy root mode is active; run 'extreme-powersave off' before the first user-session 'on'"
+	if [[ -e $PENDING ]]; then
+		die "pending activation exists; run 'extreme-powersave-user off' to recover"
+	fi
+	if [[ -e $STATE ]]; then
+		format=$(state_format "$STATE") || format=invalid
+		[[ $format == v1 ]] && validate_state "$STATE" || die "invalid state file: $STATE"
+		same_session "$STATE" || die "state belongs to another Sway session"
+		say "extreme userspace powersave: already ON; reconciling live settings"
+		apply_user_targets "$STATE" || return 1
+		if ! state_idle_alive "$STATE"; then
+			replace_idle_record "$STATE" || return 1
+			start_idle_helper "$STATE" || return 1
+		fi
+		status_v1 "$STATE"
+		return
+	fi
+
+	tmp=$(mktemp "$STATE_DIR/pending.XXXXXX") || return 1
+	if ! capture_state "$tmp" || ! validate_state "$tmp"; then
+		rm -f "$tmp"
+		warn "failed to capture a complete state snapshot"
+		return 1
+	fi
+	mv "$tmp" "$PENDING" || return 1
+
+	if ! apply_user_targets "$PENDING" || ! start_idle_helper "$PENDING"; then
+		warn "activation failed; restoring the captured state"
+		if restore_user_state "$PENDING"; then
+			rm -f "$PENDING"
+		else
+			warn "rollback was incomplete; retained $PENDING"
+		fi
+		return 1
+	fi
+	mv "$PENDING" "$STATE" || return 1
+	say "extreme userspace powersave: ON"
+}
+
+disable_mode() {
+	local file format
+	if [[ -e $PENDING ]]; then
+		file=$PENDING
+	elif [[ -e $STATE ]]; then
+		file=$STATE
+	else
+		say "extreme userspace powersave: already OFF"
+		return 0
+	fi
+	format=$(state_format "$file") || format=invalid
+	[[ $format == v1 ]] || die "invalid state file: $file"
+	if restore_user_state "$file"; then
+		rm -f "$file"
+		say "extreme userspace powersave: OFF (captured state restored)"
+	else
+		warn "restore incomplete; retained $file for retry"
+		return 1
+	fi
+}
+
+status_mode() {
+	local format
+	if [[ -e $PENDING ]]; then
+		say "extreme userspace powersave: RECOVERY REQUIRED"
+		return 1
+	fi
+	if [[ ! -e $STATE ]]; then
+		say "extreme userspace powersave: OFF"
+		return 0
+	fi
+	format=$(state_format "$STATE") || format=invalid
+	[[ $format == v1 ]] && validate_state "$STATE" || {
+		say "extreme userspace powersave: RECOVERY REQUIRED (invalid state)"
+		return 1
+	}
+	status_v1 "$STATE"
+}
+
+case ${1:-} in
+on) enable_mode ;;
+off) disable_mode ;;
+status) status_mode ;;
+*)
+	printf 'usage: extreme-powersave-user on|off|status\n' >&2
+	exit 2
+	;;
+esac

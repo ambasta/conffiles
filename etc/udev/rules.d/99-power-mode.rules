@@ -1,0 +1,10 @@
+# Outside an explicit extreme session, performance is the persistent policy on
+# both AC and battery. Reassert it after any external-power transition; the
+# helper defers safely while extreme mode is active.
+SUBSYSTEM=="power_supply", ATTR{type}!="Battery", ATTR{online}=="1", RUN+="/usr/local/bin/power-mode performance"
+SUBSYSTEM=="power_supply", ATTR{type}!="Battery", ATTR{online}=="0", RUN+="/usr/local/bin/power-mode performance"
+
+# Keep hotplugged/rebound USB and PCI devices consistent with the root toggle.
+# The helper also pins the Framework AMD xHCI controller that cannot enter D3.
+ACTION=="add|bind", SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", RUN+="/usr/local/bin/runtime-power-mode udev"
+ACTION=="add|bind", SUBSYSTEM=="pci", RUN+="/usr/local/bin/runtime-power-mode udev"
