@@ -9,6 +9,21 @@ COLOR_PEACH="#fab387"
 COLOR_RED="#f38ba8"
 COLOR_SAPPHIRE="#74c7ec"
 
+json_escape() {
+  local value=$1
+  value=${value//\\/\\\\}
+  value=${value//\"/\\\"}
+  value=${value//$'\n'/ }
+  value=${value//$'\r'/ }
+  printf '%s' "$value"
+}
+
+emit_block() {
+  local name=$1 text=$2 color=$3 urgent=${4:-false}
+  printf '{"name":"%s","full_text":" %s ","color":"%s","separator":true,"separator_block_width":10,"urgent":%s}' \
+    "$name" "$(json_escape "$text")" "$color" "$urgent"
+}
+
 # Output JSON header
 echo '{"version":1}'
 echo '['
@@ -25,19 +40,23 @@ get_audio() {
   sink_info=$(wpctl inspect @DEFAULT_AUDIO_SINK@ 2>/dev/null)
 
   if echo "$sink_info" | grep -iq "headphone\|headset"; then
-    icon=""
+    icon="HP"
     if [[ "$muted" == "MUTED" ]]; then
-      icon="🗙"
+      icon="HP"
       color="$COLOR_RED"
     fi
   else
+    icon="VOL"
     if [[ "$muted" == "MUTED" ]]; then
-      icon=""
       color="$COLOR_RED"
     fi
   fi
 
-  echo "{\"full_text\":\" $icon ${volume}% \",\"color\":\"$color\",\"separator\":true}"
+  if [[ "$muted" == "MUTED" ]]; then
+    emit_block audio "$icon muted" "$color"
+  else
+    emit_block audio "$icon ${volume}%" "$color"
+  fi
 }
 
 battery_dir() {
@@ -52,7 +71,7 @@ battery_dir() {
 
 get_battery() {
   local dir capacity status
-  local icon=""
+  local state_text=""
   local color="$COLOR_GREEN"
   local time_remaining=""
 
@@ -72,53 +91,65 @@ get_battery() {
 
   case "$status" in
     "Charging")
-      icon=""
+      state_text=" · charging"
       color="$COLOR_BLUE"
       ;;
     "Full")
-      icon=""
+      state_text=" · full"
       color="$COLOR_GREEN"
       ;;
     "Discharging" | "Not charging")
+      [[ "$status" == "Not charging" ]] && state_text=" · idle"
       if ((capacity <= 15)); then
-        icon=""
         color="$COLOR_RED"
       elif ((capacity <= 30)); then
-        icon=""
         color="$COLOR_PEACH"
       elif ((capacity <= 50)); then
-        icon=""
         color="$COLOR_BLUE"
       elif ((capacity <= 75)); then
-        icon=""
         color="$COLOR_BLUE"
       else
-        icon=""
         color="$COLOR_GREEN"
       fi
       ;;
     *)
-      icon="?"
+      state_text=" · $status"
       color="$COLOR_RED"
       ;;
   esac
 
-  echo "{\"full_text\":\" $icon ${capacity}%${time_remaining} \",\"color\":\"$color\",\"separator\":true}"
+  emit_block battery "BAT ${capacity}%${time_remaining}${state_text}" "$color" \
+    "$([[ $color == "$COLOR_RED" ]] && printf true || printf false)"
 }
 
 get_clock() {
   local datetime
   printf -v datetime '%(%Y-%m-%d %H:%M)T' -1
-  echo "{\"full_text\":\"  $datetime \",\"color\":\"$COLOR_TEXT\"}"
+  emit_block clock "$datetime" "$COLOR_TEXT"
 }
 
 # CPU usage needs a delta between two /proc/stat samples; the main loop keeps
 # the previous sample in cpu_prev_total/cpu_prev_idle and passes usage in $1.
 get_cpu() {
   local cpu_usage=$1
-  local cpu_mhz color
-  local icon=""
-  cpu_mhz=$(awk '{sum+=$1; count++} END {printf "%.2f", sum/count/1e6}' /sys/devices/system/cpu/cpu[0-9]*/cpufreq/scaling_cur_freq)
+  local cpu_mhz color urgent=false f khz total_khz=0 count=0 average_khz
+
+  # SMT-off leaves cpufreq links for offline siblings that return EBUSY. Read
+  # one value per live policy instead of spawning an awk that logs an error on
+  # every refresh.
+  for f in /sys/devices/system/cpu/cpufreq/policy*/scaling_cur_freq; do
+    IFS= read -r khz <"$f" 2>/dev/null || continue
+    [[ $khz =~ ^[0-9]+$ ]] || continue
+    total_khz=$((total_khz + khz))
+    count=$((count + 1))
+  done
+  if ((count > 0)); then
+    average_khz=$((total_khz / count))
+    printf -v cpu_mhz '%d.%02d' \
+      "$((average_khz / 1000000))" "$(((average_khz % 1000000) / 10000))"
+  else
+    cpu_mhz="N/A"
+  fi
 
   if ((cpu_usage > 90)); then
     color="${COLOR_RED}"
@@ -129,14 +160,14 @@ get_cpu() {
   else
     color="$COLOR_GREEN"
   fi
+  ((cpu_usage > 90)) && urgent=true
 
-  echo "{\"full_text\":\" $icon ${cpu_mhz}GHz ${cpu_usage}% \",\"color\":\"$color\",\"separator\":true}"
+  emit_block cpu "CPU ${cpu_mhz} GHz · ${cpu_usage}%" "$color" "$urgent"
 }
 
 get_memory() {
-  local mem_info mem_percent
+  local mem_info mem_percent urgent=false
   local color="$COLOR_MAUVE"
-  local icon=""
   mem_info=$(free -g | awk '/^Mem:/ {printf "%.1f", $3}')
   mem_percent=$(free | awk '/^Mem:/ {printf "%.0f", ($3/$2) * 100}')
 
@@ -145,13 +176,13 @@ get_memory() {
   elif ((mem_percent > 70)); then
     color="$COLOR_PEACH"
   fi
+  ((mem_percent > 90)) && urgent=true
 
-  echo "{\"full_text\":\" $icon ${mem_info}G \",\"color\":\"$color\",\"separator\":true}"
+  emit_block memory "RAM ${mem_info}G · ${mem_percent}%" "$color" "$urgent"
 }
 
 get_microphone() {
   local volume_info muted
-  local icon=""
   volume_info=$(wpctl get-volume @DEFAULT_AUDIO_SOURCE@ 2>/dev/null)
 
   if [[ -z "$volume_info" ]]; then
@@ -163,11 +194,11 @@ get_microphone() {
   local color="$COLOR_GREEN"
 
   if [[ "$muted" == "MUTED" ]]; then
-    icon=""
     color="$COLOR_RED"
+    emit_block microphone "MIC muted" "$color"
+  else
+    emit_block microphone "MIC ${volume}%" "$color"
   fi
-
-  echo "{\"full_text\":\" $icon ${volume}% \",\"color\":\"$color\",\"separator\":true}"
 }
 
 get_network() {
@@ -204,18 +235,12 @@ get_network() {
         fi
 
         interfaces+=("$status")
-      elif [[ "$operstate" == "down" ]] || [[ "$carrier" == "0" ]]; then
-
-        if [[ "$ifname" =~ ^wl ]]; then
-          interfaces+=("")
-        elif [[ "$ifname" =~ ^en|^eth ]]; then
-          interfaces+=("")
-        fi
       fi
     fi
   done
 
   if [[ ${#interfaces[@]} -eq 0 ]]; then
+    emit_block network "NET offline" "$COLOR_RED" true
     return
   fi
 
@@ -235,12 +260,11 @@ get_network() {
     color="$COLOR_PEACH"
   fi
 
-  echo "{\"full_text\":\" $combined_status \",\"color\":\"$color\",\"separator\":true}"
+  emit_block network "NET${combined_status}" "$color"
 }
 
 get_temp() {
   local temp temp_max temp_crit color
-  local icon="󰔏"
   local base f label
 
   # hwmon numbering is not stable across boots; scan all of them for the CPU sensor.
@@ -255,7 +279,7 @@ get_temp() {
   done
 
   if [[ -z "$temp" ]]; then
-    echo "{\"full_text\":\" $icon N/A \",\"color\":\"$COLOR_SUBTEXT\",\"separator\":true}"
+    emit_block temperature "TEMP N/A" "$COLOR_SUBTEXT"
     return
   fi
 
@@ -269,7 +293,61 @@ get_temp() {
     color="$COLOR_GREEN"
   fi
 
-  echo "{\"full_text\":\" $icon ${temp}°C \",\"color\":\"$color\",\"separator\":true}"
+  emit_block temperature "TEMP ${temp}°C" "$color" \
+    "$([[ $color == "$COLOR_RED" ]] && printf true || printf false)"
+}
+
+get_power_mode() {
+  local runtime_root=${XDG_RUNTIME_DIR:-/run/user/$UID}
+  local user_dir="$runtime_root/extreme-powersave-user"
+  local runtime_policy_file=/run/extreme-powersave.runtime-pm-policy
+  local root_on=0 user_on=0 boost=unknown runtime_policy=unknown
+
+  if [[ -e /run/extreme-powersave.recovery ]]; then
+    emit_block power "POWER recovery" "$COLOR_RED" true
+    return
+  fi
+
+  if [[ -e /run/extreme-powersave.pending || -e "$user_dir/pending" ]]; then
+    emit_block power "POWER transition" "$COLOR_RED" true
+    return
+  fi
+
+  [[ -e /run/extreme-powersave.state ]] && root_on=1
+  [[ -e "$user_dir/state" ]] && user_on=1
+
+  if [[ -r $runtime_policy_file ]]; then
+    IFS= read -r runtime_policy <"$runtime_policy_file"
+  fi
+
+  if [[ ! $runtime_policy =~ ^(performance|powersave)$ ]]; then
+    emit_block power "POWER policy-missing" "$COLOR_RED" true
+  elif ((root_on)) && [[ $runtime_policy != powersave ]]; then
+    emit_block power "POWER mismatch" "$COLOR_RED" true
+  elif ((root_on && user_on)); then
+    emit_block power "POWER max-save" "$COLOR_BLUE"
+  elif ((root_on)); then
+    emit_block power "POWER root-save" "$COLOR_PEACH"
+  elif ((user_on)); then
+    emit_block power "POWER user-save" "$COLOR_PEACH"
+  else
+    [[ -r /sys/devices/system/cpu/cpufreq/boost ]] && \
+      IFS= read -r boost </sys/devices/system/cpu/cpufreq/boost
+    if [[ $boost == 1 && $runtime_policy == performance ]]; then
+      emit_block power "POWER performance" "$COLOR_GREEN"
+    else
+      emit_block power "POWER limited" "$COLOR_RED" true
+    fi
+  fi
+}
+
+get_display_brightness() {
+  local helper="$HOME/.local/bin/display-brightness" status color=$COLOR_BLUE
+  [[ -x $helper ]] || return
+  status=$($helper status --bar 2>/dev/null) || return
+  [[ -n $status ]] || return
+  [[ $status == *"unavailable"* || $status == *"offline"* ]] && color=$COLOR_RED
+  emit_block display "$status" "$color"
 }
 
 add_block() {
@@ -278,6 +356,8 @@ add_block() {
 
 cpu_prev_total=0
 cpu_prev_idle=0
+display_block=""
+display_last_refresh=-5
 
 while true; do
   echo "["
@@ -296,9 +376,15 @@ while true; do
 
   blocks=()
 
+  add_block "$(get_power_mode)"
+  if ((SECONDS - display_last_refresh >= 5)); then
+    display_block=$(get_display_brightness)
+    display_last_refresh=$SECONDS
+  fi
+  add_block "$display_block"
   add_block "$(get_network)"
-  add_block "$(get_temp)"
   add_block "$(get_cpu "$cpu_usage")"
+  add_block "$(get_temp)"
   add_block "$(get_memory)"
   add_block "$(get_audio)"
   add_block "$(get_microphone)"
@@ -314,5 +400,11 @@ while true; do
   done
 
   echo "],"
-  sleep 1
+  # The user-session extreme power toggle owns this marker. Poll less often
+  # while it is active, then return to the normal responsive interval on off.
+  if [[ -f ${XDG_RUNTIME_DIR:-/run/user/$UID}/extreme-powersave-user/state ]]; then
+    sleep 5
+  else
+    sleep 1
+  fi
 done
