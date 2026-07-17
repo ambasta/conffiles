@@ -5,6 +5,7 @@
 app-containers/podman wrapper
 app-containers/skopeo rootless
 app-crypt/pinentry gtk
+app-misc/ddcutil usb-monitor user-permissions
 dev-db/postgresql llvm python threads uuid
 dev-lang/rust rust-analyzer rustfmt rust-src system-bootstrap system-llvm
 dev-lang/python sqlite
