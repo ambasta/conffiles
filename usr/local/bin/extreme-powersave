@@ -22,9 +22,11 @@ PENDING="$RUN_DIR/extreme-powersave.pending"
 LOCK="$RUN_DIR/extreme-powersave.lock"
 DEFERRED="$RUN_DIR/extreme-powersave.power-source-dirty"
 RECOVERY="$RUN_DIR/extreme-powersave.recovery"
+RYZEN_POLICY="$RUN_DIR/extreme-powersave.ryzenadj-policy"
 POWER_MODE=${EXTREME_POWERSAVE_POWER_MODE:-power-mode}
 RUNTIME_PM=${EXTREME_POWERSAVE_RUNTIME_PM:-"$SCRIPT_DIR/runtime-power-mode"}
 POWERPROFILESCTL=${EXTREME_POWERSAVE_POWERPROFILESCTL:-powerprofilesctl}
+RYZENADJ=${EXTREME_POWERSAVE_RYZENADJ:-ryzenadj}
 RFKILL=${EXTREME_POWERSAVE_RFKILL:-rfkill}
 UDEVADM=${EXTREME_POWERSAVE_UDEVADM:-udevadm}
 IW=${EXTREME_POWERSAVE_IW:-iw}
@@ -813,6 +815,66 @@ force_performance_mode() {
 	return "$errors"
 }
 
+ryzen_metric() {
+	local table=$1 wanted=$2
+	awk -F '|' -v wanted="$wanted" '
+		{
+			name = $2
+			value = $3
+			gsub(/^[[:space:]]+|[[:space:]]+$/, "", name)
+			gsub(/^[[:space:]]+|[[:space:]]+$/, "", value)
+			if (name == wanted) {
+				print value
+				exit
+			}
+		}' <<<"$table"
+}
+
+status_ryzen_limits() {
+	local expected=$1 table stapm fast slow
+	if ((EUID != 0)) && [[ $TESTING != 1 ]]; then
+		say "info:     live Ryzen SMU limits require root"
+		return 0
+	fi
+	command -v "$RYZENADJ" >/dev/null 2>&1 || return 0
+	table=$("$RYZENADJ" -i 2>/dev/null) || {
+		say "unavailable: RyzenAdj could not read live SMU limits"
+		return 0
+	}
+	stapm=$(ryzen_metric "$table" 'STAPM LIMIT')
+	fast=$(ryzen_metric "$table" 'PPT LIMIT FAST')
+	slow=$(ryzen_metric "$table" 'PPT LIMIT SLOW')
+	if [[ $stapm =~ ^[0-9]+([.][0-9]+)?$ && $fast =~ ^[0-9]+([.][0-9]+)?$ &&
+		$slow =~ ^[0-9]+([.][0-9]+)?$ ]]; then
+		say "info:     Ryzen SMU limits: STAPM ${stapm} W, slow ${slow} W, fast ${fast} W"
+		if [[ $expected == performance ]] &&
+			awk -v value="$slow" 'BEGIN { exit !(value <= 15.25) }'; then
+			say "info:     slow PPT is firmware-derated; Framework thermal protection may be active"
+		fi
+	else
+		say "unavailable: RyzenAdj returned an incomplete SMU limit table"
+	fi
+}
+
+status_ryzen_hint() {
+	local expected=$1 actual errors=0
+	if [[ ! -e $RYZEN_POLICY ]]; then
+		say "unavailable: RyzenAdj $expected selector has not been recorded"
+	elif [[ ! -r $RYZEN_POLICY ]]; then
+		say "unavailable: RyzenAdj selector details require root"
+	else
+		actual=$(read_value "$RYZEN_POLICY" 2>/dev/null || printf unknown)
+		if [[ $actual == "$expected" ]]; then
+			say "ok:       RyzenAdj selector = $actual (last requested)"
+		else
+			say "mismatch: RyzenAdj selector expected $expected, got $actual"
+			errors=1
+		fi
+	fi
+	status_ryzen_limits "$expected"
+	return "$errors"
+}
+
 status_v2() {
 	local file=$1 kind key saved identity target actual path errors=0 expected governor epp
 	say "extreme powersave: ON"
@@ -930,11 +992,12 @@ status_v2() {
 	if ! "$RUNTIME_PM" status powersave; then
 		errors=1
 	fi
+	status_ryzen_hint powersave || errors=1
 	return "$errors"
 }
 
 status_mode() {
-	local file format
+	local file format errors=0
 	if [[ -e $RECOVERY ]]; then
 		say "extreme powersave: RECOVERY REQUIRED (off transition incomplete)"
 		"$RUNTIME_PM" status || true
@@ -950,13 +1013,15 @@ status_mode() {
 	fi
 	if [[ ! -e $STATE ]]; then
 		say "extreme powersave: OFF"
-		"$RUNTIME_PM" status performance
-		return
+		"$RUNTIME_PM" status performance || errors=1
+		status_ryzen_hint performance || errors=1
+		return "$errors"
 	fi
 	if [[ ! -r $STATE ]]; then
 		say "extreme powersave: ON (details require root)"
-		"$RUNTIME_PM" status powersave
-		return
+		"$RUNTIME_PM" status powersave || errors=1
+		status_ryzen_hint powersave || errors=1
+		return "$errors"
 	fi
 	format=$(state_format "$STATE") || format=invalid
 	case "$format" in

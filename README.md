@@ -35,8 +35,8 @@ The toggle is split so the root process never reaches into a graphical user
 session:
 
 ```sh
-# In a root shell: CPU/profile, SMT, USB/PCI runtime PM, GPU, panel ABM,
-# ASPM, VM, HDA and Wi-Fi.
+# In a root shell: CPU/profile, Ryzen SMU selector, SMT, USB/PCI runtime PM,
+# GPU, panel ABM, ASPM, VM, HDA and Wi-Fi.
 extreme-powersave on
 extreme-powersave off
 
@@ -50,9 +50,15 @@ Repeated `on` does not overwrite either script's first snapshot. User-session
 `off` restores its exact display/radio state. Root `off` restores captured
 non-CPU controls, then always forces full performance mode: SMT and boost
 enabled, full frequency cap, performance governor/EPP, PPD `performance`, and
-USB/PCI runtime PM disabled (`power/control=on`). Repeated root `off` reasserts
-that policy. Root `on` enables USB/PCI runtime PM (`auto`) along with the other
-privileged power-saving controls. The Framework AMD xHCI controller matching
+USB/PCI runtime PM disabled (`power/control=on`). It also asks RyzenAdj for its
+device-specific `--max-performance` selector; root `on` uses `--power-saving`.
+Repeated transitions reassert those selectors, including after an AC/DC event
+during an active extreme session. AMD PMF and the Framework EC remain the
+authority for numeric STAPM/PPT and thermal limits: the scripts deliberately do
+not override the EC's 15 W slow-PPT thermal-warning clamp. Repeated root `off`
+reasserts the full-performance policy. Root `on` enables USB/PCI runtime PM
+(`auto`) along with the other privileged power-saving controls. The Framework
+AMD xHCI controller matching
 `1022:15b9`/`f111:0006` remains `on` in both modes because it cannot enter D3
 and otherwise floods the kernel journal; its USB children can still autosuspend.
 The user helper powers off the internal display after five idle minutes.
@@ -87,10 +93,13 @@ extreme-powersave off
 extreme-powersave status
 ```
 
-The final status line should report `runtime PM = performance` with every
-present USB/PCI device matching. Use `extreme-powersave on` when you want those
-devices to autosuspend, then run `extreme-powersave status` again to verify the
-`powersave` target.
+The final status should report `runtime PM = performance` with every present
+USB/PCI device matching and `RyzenAdj selector = performance (last requested)`.
+Use `extreme-powersave on` when you want those devices to autosuspend, then run
+`extreme-powersave status` again to verify the `powersave` targets. The selector
+marker records the last successful request because Phoenix does not expose a
+reliable readback for this hidden setting; `ryzenadj -i` remains the source for
+live firmware-managed STAPM/PPT values.
 
 ## HDR display brightness
 

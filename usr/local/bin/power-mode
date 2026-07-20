@@ -13,11 +13,13 @@ LOCK="$RUN_DIR/extreme-powersave.lock"
 STATE="$RUN_DIR/extreme-powersave.state"
 PENDING="$RUN_DIR/extreme-powersave.pending"
 DEFERRED="$RUN_DIR/extreme-powersave.power-source-dirty"
+RYZEN_POLICY="$RUN_DIR/extreme-powersave.ryzenadj-policy"
 INTERNAL=${EXTREME_POWERSAVE_INTERNAL:-0}
 LOCK_HELD=${EXTREME_POWERSAVE_LOCK_HELD:-0}
 CPUFREQ="$SYSFS_ROOT/devices/system/cpu/cpufreq"
 POWERPROFILESCTL=${EXTREME_POWERSAVE_POWERPROFILESCTL:-powerprofilesctl}
 RUNTIME_PM=${EXTREME_POWERSAVE_RUNTIME_PM:-"$SCRIPT_DIR/runtime-power-mode"}
+RYZENADJ=${EXTREME_POWERSAVE_RYZENADJ:-ryzenadj}
 
 read_value() {
 	local path=$1
@@ -29,6 +31,38 @@ write_value() {
 	local path=$1 value=$2
 	[[ -w $path ]] || return 1
 	printf '%s\n' "$value" >"$path"
+}
+
+# These RyzenAdj selectors change Phoenix's undocumented AC/DC boost-delay
+# policy. AMD PMF and the Framework EC remain authoritative for numeric
+# STAPM/PPT and thermal limits; never fight their thermal-warning clamp here.
+apply_ryzen_hint() {
+	local wanted=$1 flag tmp
+	case "$wanted" in
+	performance) flag=--max-performance ;;
+	powersave) flag=--power-saving ;;
+	*) return 2 ;;
+	esac
+
+	if ! command -v "$RYZENADJ" >/dev/null 2>&1; then
+		printf 'power-mode: ryzenadj is unavailable; skipped %s selector\n' "$wanted" >&2
+		return 2
+	fi
+	if ! "$RYZENADJ" "$flag" >/dev/null 2>&1; then
+		printf 'power-mode: ryzenadj failed to apply %s selector\n' "$wanted" >&2
+		return 1
+	fi
+
+	tmp=$(mktemp "$RUN_DIR/extreme-powersave.ryzenadj-policy.XXXXXX") || {
+		printf 'power-mode: cannot record the RyzenAdj selector\n' >&2
+		return 1
+	}
+	if ! printf '%s\n' "$wanted" >"$tmp" || ! chmod 644 "$tmp" ||
+		! mv -f "$tmp" "$RYZEN_POLICY"; then
+		rm -f "$tmp"
+		printf 'power-mode: cannot publish the RyzenAdj selector\n' >&2
+		return 1
+	fi
 }
 
 if ((EUID != 0)) && [[ ${EXTREME_POWERSAVE_TESTING:-0} != 1 ]]; then
@@ -46,6 +80,12 @@ fi
 # toggle uses INTERNAL=1 while holding this same lock for its own transition.
 if [[ $INTERNAL != 1 && ( -e $STATE || -e $PENDING ) ]]; then
 	: >"$DEFERRED"
+	# A physical AC/DC transition can rewrite the hidden SMU selector even
+	# though the normal CPU/profile transition is deferred. Reassert only a
+	# fully committed extreme policy; leave an in-flight activation untouched.
+	if [[ -e $STATE ]]; then
+		apply_ryzen_hint powersave || :
+	fi
 	printf 'power-mode: extreme powersave is active; transition deferred\n'
 	exit 0
 fi
@@ -166,8 +206,8 @@ if [[ $mode == auto ]]; then
 fi
 
 case "$mode" in
-ac | performance | max) mode=performance profile=performance boost=1 cap=cpuinfo_max_freq governor=performance epp=performance runtime_pm=performance ;;
-battery) profile=power-saver boost=0 cap=amd_pstate_lowest_nonlinear_freq governor=powersave epp=power runtime_pm=powersave ;;
+ac | performance | max) mode=performance profile=performance boost=1 cap=cpuinfo_max_freq governor=performance epp=performance runtime_pm=performance ryzen_hint=performance ;;
+battery) profile=power-saver boost=0 cap=amd_pstate_lowest_nonlinear_freq governor=powersave epp=power runtime_pm=powersave ryzen_hint=powersave ;;
 *)
 	printf 'usage: power-mode [performance|max|ac|battery|auto]\n' >&2
 	exit 2
@@ -243,4 +283,8 @@ if [[ $("$POWERPROFILESCTL" get 2>/dev/null) != "$profile" ]]; then
 	printf 'power-mode: profile verification failed\n' >&2
 	errors=1
 fi
+
+# PPD/AMD PMF can reset the hidden selector, so apply this last. Failure is
+# reported but does not invalidate the authoritative, already-verified profile.
+apply_ryzen_hint "$ryzen_hint" || :
 exit "$errors"

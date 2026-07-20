@@ -56,6 +56,8 @@ root_smoke() {
 	put "$base/battery-aware" true
 	put "$base/battery-aware-attempts" ''
 	put "$base/log" ''
+	put "$base/ryzenadj-log" ''
+	put "$base/ryzenadj-hint" unknown
 	put "$base/root-wifi" off
 	put "$base/root-wifi-link" connected
 
@@ -104,6 +106,32 @@ set)
 	;;
 esac
 MOCK
+	install -m 755 /dev/stdin "$bin/ryzenadj" <<'MOCK'
+#!/bin/bash
+set -eu
+printf '%s\n' "$*" >>"$MOCK/ryzenadj-log"
+case "${1:-}" in
+--max-performance)
+	[[ ${MOCK_RYZENADJ_FAIL:-0} != 1 ]] || exit 19
+	printf '%s\n' performance >"$MOCK/ryzenadj-hint"
+	;;
+--power-saving)
+	[[ ${MOCK_RYZENADJ_FAIL:-0} != 1 ]] || exit 19
+	printf '%s\n' powersave >"$MOCK/ryzenadj-hint"
+	;;
+-i)
+	case $(<"$MOCK/ryzenadj-hint") in
+	performance) stapm=30 slow=35 fast=53 ;;
+	powersave) stapm=15 slow=15 fast=30 ;;
+	*) exit 3 ;;
+	esac
+	printf '| STAPM LIMIT         |    %s.000 | stapm-limit |\n' "$stapm"
+	printf '| PPT LIMIT FAST      |    %s.000 | fast-limit  |\n' "$fast"
+	printf '| PPT LIMIT SLOW      |    %s.000 | slow-limit  |\n' "$slow"
+	;;
+*) exit 2 ;;
+esac
+MOCK
 	install -m 755 /dev/stdin "$bin/power-mode" <<'MOCK'
 #!/bin/bash
 set -eu
@@ -116,12 +144,16 @@ battery)
 	"$MOCK_BIN/powerprofilesctl" set power-saver
 	printf '%s\n' 0 >"$MOCK_SYS/devices/system/cpu/cpufreq/boost"
 	cat "$MOCK_SYS/devices/system/cpu/cpufreq/policy0/amd_pstate_lowest_nonlinear_freq" >"$MOCK_SYS/devices/system/cpu/cpufreq/policy0/scaling_max_freq"
+	"$MOCK_BIN/ryzenadj" --power-saving
+	printf '%s\n' powersave >"$MOCK_RUN/extreme-powersave.ryzenadj-policy"
 	;;
 ac | auto | performance | max)
 	EXTREME_POWERSAVE_LOCK_HELD=1 "$MOCK_RUNTIME_PM" performance
 	printf '%s\n' 1 >"$MOCK_SYS/devices/system/cpu/cpufreq/boost"
 	"$MOCK_BIN/powerprofilesctl" set performance
 	cat "$MOCK_SYS/devices/system/cpu/cpufreq/policy0/cpuinfo_max_freq" >"$MOCK_SYS/devices/system/cpu/cpufreq/policy0/scaling_max_freq"
+	"$MOCK_BIN/ryzenadj" --max-performance
+	printf '%s\n' performance >"$MOCK_RUN/extreme-powersave.ryzenadj-policy"
 	;;
 esac
 MOCK
@@ -152,15 +184,18 @@ MOCK
 		EXTREME_POWERSAVE_RUN_DIR="$run"
 		EXTREME_POWERSAVE_POWER_MODE="$bin/power-mode"
 		EXTREME_POWERSAVE_POWERPROFILESCTL="$bin/powerprofilesctl"
+		EXTREME_POWERSAVE_RYZENADJ="$bin/ryzenadj"
 		EXTREME_POWERSAVE_UDEVADM="$bin/udevadm"
 		EXTREME_POWERSAVE_RFKILL="$bin/rfkill"
 		EXTREME_POWERSAVE_IW="$bin/iw"
-		MOCK="$base" MOCK_SYS="$sys" MOCK_BIN="$bin"
+		MOCK="$base" MOCK_SYS="$sys" MOCK_BIN="$bin" MOCK_RUN="$run"
 		MOCK_RUNTIME_PM="$REPO/usr/local/bin/runtime-power-mode")
 
 	"${env[@]}" "$ROOT_SCRIPT" on >/dev/null
 	[[ -f $run/extreme-powersave.state ]] || fail 'root state was not committed'
 	assert_eq power-saver "$(cat "$base/profile")" 'root profile on'
+	assert_eq powersave "$(cat "$base/ryzenadj-hint")" 'root RyzenAdj selector on'
+	assert_eq powersave "$(cat "$run/extreme-powersave.ryzenadj-policy")" 'root RyzenAdj marker on'
 	assert_eq off "$(cat "$sys/devices/system/cpu/smt/control")" 'root SMT on'
 	assert_eq 0 "$(cat "$sys/devices/system/cpu/cpufreq/boost")" 'root boost on'
 	assert_eq 1100 "$(cat "$policy/scaling_max_freq")" 'root cap on'
@@ -187,6 +222,11 @@ MOCK
 	assert_eq on "$(cat "$sys/devices/hotplug-xhci/power/control")" 'hotplug broken xHCI protected'
 	assert_eq connected "$(cat "$base/root-wifi-link")" 'root Wi-Fi association preserved on'
 	assert_eq false "$(cat "$base/battery-aware")" 'PPD battery-aware disabled'
+	"${env[@]}" "$ROOT_SCRIPT" status >"$base/on-status"
+	grep -q 'RyzenAdj selector = powersave (last requested)' "$base/on-status" ||
+		fail 'root status omitted the RyzenAdj powersave selector'
+	grep -q 'Ryzen SMU limits: STAPM 15.000 W, slow 15.000 W, fast 30.000 W' "$base/on-status" ||
+		fail 'root status omitted the live powersave limits'
 
 	# An already-active v2 snapshot from before root Wi-Fi support must be
 	# extended before reconciliation, then restore the newly captured baseline.
@@ -215,6 +255,8 @@ MOCK
 	[[ ! -e $run/extreme-powersave.state ]] || fail 'root state remained after off'
 	[[ ! -e $run/extreme-powersave.recovery ]] || fail 'root recovery marker remained after off'
 	assert_eq performance "$(cat "$base/profile")" 'root profile restore'
+	assert_eq performance "$(cat "$base/ryzenadj-hint")" 'root RyzenAdj selector restore'
+	assert_eq performance "$(cat "$run/extreme-powersave.ryzenadj-policy")" 'root RyzenAdj marker restore'
 	assert_eq on "$(cat "$sys/devices/system/cpu/smt/control")" 'root SMT restore'
 	assert_eq 1 "$(cat "$sys/devices/system/cpu/cpufreq/boost")" 'root boost restore'
 	assert_eq 3300 "$(cat "$policy/scaling_max_freq")" 'root max restore'
@@ -225,6 +267,11 @@ MOCK
 	assert_eq off "$(cat "$base/root-wifi")" 'root Wi-Fi power save restore'
 	assert_eq on "$(cat "$sys/bus/usb/devices/usb1/power/control")" 'root USB performance restore'
 	assert_eq on "$(cat "$sys/bus/pci/devices/0000:c3:00.4/power/control")" 'root PCI performance restore'
+	"${env[@]}" "$ROOT_SCRIPT" status >"$base/off-status"
+	grep -q 'RyzenAdj selector = performance (last requested)' "$base/off-status" ||
+		fail 'root status omitted the RyzenAdj performance selector'
+	grep -q 'Ryzen SMU limits: STAPM 30.000 W, slow 35.000 W, fast 53.000 W' "$base/off-status" ||
+		fail 'root status omitted the live performance limits'
 	printf '%s\n' auto >"$sys/devices/hotplug-usb/power/control"
 	DEVPATH=/devices/hotplug-usb "${env[@]}" \
 		"$REPO/usr/local/bin/runtime-power-mode" udev
@@ -258,10 +305,13 @@ MOCK
 	EXTREME_POWERSAVE_SYSFS_ROOT="$sys" \
 	EXTREME_POWERSAVE_RUN_DIR="$run" \
 	EXTREME_POWERSAVE_POWERPROFILESCTL="$bin/powerprofilesctl" \
-	MOCK="$base" MOCK_SYS="$sys" \
+	EXTREME_POWERSAVE_RYZENADJ="$bin/ryzenadj" \
+	MOCK="$base" MOCK_SYS="$sys" MOCK_RUN="$run" \
 		"$REPO/usr/local/bin/power-mode" battery >/dev/null
 	assert_eq 1 "$(cat "$sys/devices/system/cpu/cpufreq/boost")" 'deferred power-mode boost'
 	assert_eq 3300 "$(cat "$policy/scaling_max_freq")" 'deferred power-mode cap'
+	assert_eq powersave "$(cat "$base/ryzenadj-hint")" 'deferred RyzenAdj selector'
+	assert_eq powersave "$(cat "$run/extreme-powersave.ryzenadj-policy")" 'deferred RyzenAdj marker'
 	[[ -e $run/extreme-powersave.power-source-dirty ]] || fail 'deferred power source marker missing'
 	rm -f "$run/extreme-powersave.state"
 	rm -f "$run/extreme-powersave.power-source-dirty"
@@ -273,6 +323,8 @@ MOCK
 	"${env[@]}" "$REPO/usr/local/bin/power-mode" performance >/dev/null
 	[[ ! -s $base/battery-aware-attempts ]] ||
 		fail 'power-mode redundantly disabled an already-false battery-aware state'
+	assert_eq performance "$(cat "$base/ryzenadj-hint")" 'power-mode performance RyzenAdj selector'
+	assert_eq performance "$(cat "$run/extreme-powersave.ryzenadj-policy")" 'power-mode performance RyzenAdj marker'
 
 	printf '%s\n' true >"$base/battery-aware"
 	: >"$base/battery-aware-attempts"
@@ -293,6 +345,19 @@ MOCK
 		fail 'power-mode did not report battery-aware verification failure'
 	printf '%s\n' false >"$base/battery-aware"
 
+	# RyzenAdj's hidden selector is supplementary to AMD PMF. A rejected or
+	# unavailable helper must be reported without invalidating the verified PPD
+	# and cpufreq transition.
+	MOCK_RYZENADJ_FAIL=1 "${env[@]}" \
+		"$REPO/usr/local/bin/power-mode" performance >"$base/ryzenadj-failed.out" 2>&1
+	grep -q 'ryzenadj failed to apply performance selector' "$base/ryzenadj-failed.out" ||
+		fail 'power-mode did not report RyzenAdj selector failure'
+	assert_eq performance "$(cat "$run/extreme-powersave.ryzenadj-policy")" 'failed RyzenAdj marker preservation'
+	"${env[@]}" EXTREME_POWERSAVE_RYZENADJ="$bin/missing-ryzenadj" \
+		"$REPO/usr/local/bin/power-mode" performance >"$base/ryzenadj-missing.out" 2>&1
+	grep -q 'ryzenadj is unavailable; skipped performance selector' "$base/ryzenadj-missing.out" ||
+		fail 'power-mode did not report missing RyzenAdj selector'
+
 	# PPD rejects every per-policy operation when global boost is zero. The real
 	# helper must temporarily enable it and retry a transient profile failure.
 	printf '%s\n' performance >"$base/profile"
@@ -305,13 +370,16 @@ MOCK
 	EXTREME_POWERSAVE_SYSFS_ROOT="$sys" \
 	EXTREME_POWERSAVE_RUN_DIR="$run" \
 	EXTREME_POWERSAVE_POWERPROFILESCTL="$bin/powerprofilesctl" \
-	MOCK="$base" MOCK_SYS="$sys" \
+	EXTREME_POWERSAVE_RYZENADJ="$bin/ryzenadj" \
+	MOCK="$base" MOCK_SYS="$sys" MOCK_RUN="$run" \
 		"$REPO/usr/local/bin/power-mode" battery >/dev/null
 	assert_eq 0 "$(cat "$sys/devices/system/cpu/cpufreq/boost")" 'normal power-mode boost'
 	assert_eq 1100 "$(cat "$policy/scaling_max_freq")" 'normal power-mode cap'
 	assert_eq power-saver "$(cat "$base/profile")" 'normal power-mode profile'
 	assert_eq powersave "$(cat "$policy/scaling_governor")" 'normal power-mode governor'
 	assert_eq power "$(cat "$policy/energy_performance_preference")" 'normal power-mode EPP'
+	assert_eq powersave "$(cat "$base/ryzenadj-hint")" 'normal power-mode RyzenAdj selector'
+	assert_eq powersave "$(cat "$run/extreme-powersave.ryzenadj-policy")" 'normal power-mode RyzenAdj marker'
 	assert_eq 2 "$(grep -c '^ppd-set:power-saver$' "$base/ppd-attempts")" 'power-mode profile retry'
 
 	# The retained legacy snapshot must now recover from SMT-off/boost-off and
