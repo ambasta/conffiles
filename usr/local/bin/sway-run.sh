@@ -22,4 +22,9 @@ export ELECTRON_OZONE_PLATFORM_HINT=auto
 
 source /usr/local/bin/wayland_enablement.sh
 
-systemd-cat --identifier=sway sway $@
+# Every GUI app sway spawns inherits sway's stdout/stderr. Piping that to the
+# journal (systemd-cat) therefore dumped all child chatter -- Firefox JS/cubeb
+# warnings and the like -- into the journal tagged sway[...]. Send the whole
+# session log to an ephemeral tmpfile on the runtime tmpfs instead, so the
+# journal stays clean while the log is still there for debugging this boot.
+exec sway "$@" >"${XDG_RUNTIME_DIR:-/tmp}/sway.log" 2>&1
