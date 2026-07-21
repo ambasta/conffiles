@@ -1,0 +1,6 @@
+# Treat kmod as externally provided so Portage never emerges it as a dependency
+# (pulled in by sys-apps/systemd, sys-apps/pciutils, sys-libs/libblockdev).
+# The udev rules that used the "kmod load" builtin are commented out locally,
+# so the kmod USE flag stays off and the package itself is not wanted.
+# Must be a versioned atom; bump this when the installed version changes.
+sys-apps/kmod-34.2
