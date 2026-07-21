@@ -58,6 +58,9 @@ www-client/firefox clang geckodriver gmp-autoupdate jpegxl mold openh264 pulseau
 www-client/chromium custom-cflags gtk4 -hangouts -js-type-check -official -proprietary-codecs screencast
 # www-client/chromium gtk4 libcxx -official -proprietary-codecs screencast system-av1 system-harfbuzz system-icu system-png vaapi wayland -hangouts -js-type-check
 
+#Required by app-containers/podman
+app-containers/container-libs extra
+
 # Required by www-client/chromium
 app-text/xmlto text
 dev-libs/libxml2 icu

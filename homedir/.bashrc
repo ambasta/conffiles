@@ -6,9 +6,14 @@ source /etc/profile
 export COREPACK_ENABLE_DOWNLOAD_PROMPT=0
 export PYTHONDONTWRITEBYTECODE=1
 
-export SSH_AUTH_SOCK="/run/user/$(id -u)/gcr/ssh"
+# keyboxd (public-key DB, enabled via ~/.gnupg/common.conf's use-keyboxd) has no
+# systemd socket unit, so nothing socket-activates it. Launch it before keychain
+# touches gpg, otherwise the first gpg op in a fresh terminal hits a stale socket
+# and fails with "No Keybox daemon running".
+gpgconf --launch keyboxd 2>/dev/null
+
 eval "$(keychain -q --eval --extended sshk:id_rsa gpgk:F0B27A3B6D7CF774)"
-source "${HOME}/.keychain/${HOSTNAME}-sh"
+source "${HOME}/.keychain/${HOSTNAME}-sh" 2>/dev/null
 
 # Import the systemd user environment (sway session vars etc.), except PATH.
 # show-environment shell-quotes values with spaces ($'...'), so eval each line.
