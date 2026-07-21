@@ -1,0 +1,58 @@
+#!/bin/sh
+
+LOG_PREFIX="WiFi Auto-Toggle"
+ETHERNET_IFACE_BUILTIN="enp193s0f3u1"
+ETHERNET_IFACE_USBDOCK="eth0"
+
+# NetworkManager fires this for non-interface events too (e.g. "hostname"),
+# often before NM can answer nmcli queries during early boot -- that produced a
+# spurious "exited with status 8" failure each boot. Only interface up/down
+# events are actionable, so ignore everything else and exit cleanly.
+case "$2" in
+    up | down) ;;
+    *) exit 0 ;;
+esac
+
+# Function to check if an ethernet interface is connected
+is_ethernet_connected() {
+    local interface=$1
+    local state=$(nmcli -g GENERAL.STATE device show "$interface" 2>/dev/null)
+    # State 100 means connected, state 20 means unavailable
+    [ "$state" = "100 (connected)" ]
+}
+
+# Function to check if any ethernet interface is connected
+any_ethernet_connected() {
+    is_ethernet_connected "$ETHERNET_IFACE_BUILTIN" || is_ethernet_connected "$ETHERNET_IFACE_USBDOCK"
+}
+
+# Handle interface state changes
+if [ "$1" = "$ETHERNET_IFACE_BUILTIN" ] || [ "$1" = "$ETHERNET_IFACE_USBDOCK" ]; then
+    case "$2" in
+        up)
+            echo "$LOG_PREFIX ethernet interface $1 up"
+            # Turn off WiFi when any ethernet comes up
+            nmcli radio wifi off
+            ;;
+        down)
+            echo "$LOG_PREFIX ethernet interface $1 down"
+            # Only turn on WiFi if NO ethernet interfaces are connected
+            if ! any_ethernet_connected; then
+                echo "$LOG_PREFIX no ethernet connections, enabling WiFi"
+                nmcli radio wifi on
+            else
+                echo "$LOG_PREFIX other ethernet interface still connected, keeping WiFi off"
+            fi
+            ;;
+    esac
+else
+    # Failsafe check - if script is run without interface parameters
+    echo "$LOG_PREFIX failsafe check"
+    if any_ethernet_connected; then
+        echo "$LOG_PREFIX ethernet connected, ensuring WiFi is off"
+        nmcli radio wifi off
+    else
+        echo "$LOG_PREFIX no ethernet connected, ensuring WiFi is on"
+        nmcli radio wifi on
+    fi
+fi

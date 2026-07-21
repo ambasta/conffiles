@@ -8,4 +8,4 @@ Type=oneshot
 ExecStart=/usr/local/bin/power-mode performance
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=graphical.target

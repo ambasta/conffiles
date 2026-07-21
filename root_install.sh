@@ -9,6 +9,11 @@ must_copy() {
 	etc/systemd/* | etc/udev/* | etc/tmpfiles.d/* | etc/modprobe.d/* | etc/sysctl.d/* | usr/local/bin/*)
 		return 0
 		;;
+	# NetworkManager refuses dispatcher scripts that are symlinks or not owned
+	# by root, so they must be installed as real root-owned copies.
+	etc/NetworkManager/dispatcher.d/*)
+		return 0
+		;;
 	*) return 1 ;;
 	esac
 }
@@ -40,4 +45,9 @@ systemd-tmpfiles --create /etc/tmpfiles.d/powersave.conf
 # Reconcile the just-installed boot default with an already-active root toggle.
 # With no active state this publishes and applies full performance immediately.
 /usr/local/bin/runtime-power-mode current
-systemctl enable --now power-mode.service
+# reenable (not enable) so a changed [Install] section prunes stale WantedBy
+# symlinks. power-mode.service moved from multi-user.target to graphical.target
+# to break an ordering cycle with power-profiles-daemon; a plain enable would
+# leave the old multi-user.target.wants symlink in place and keep the cycle.
+systemctl reenable power-mode.service
+systemctl start power-mode.service
