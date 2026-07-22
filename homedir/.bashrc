@@ -1,6 +1,3 @@
-# Kiro CLI pre block. Keep at the top of this file.
-[[ -f "${HOME}/.local/share/kiro-cli/shell/bashrc.pre.bash" ]] && builtin source "${HOME}/.local/share/kiro-cli/shell/bashrc.pre.bash"
-
 source /etc/profile
 
 export COREPACK_ENABLE_DOWNLOAD_PROMPT=0
@@ -35,8 +32,5 @@ export GITHUB_TOKEN
 
 # Machine-local secrets and overrides (untracked).
 [[ -f "$HOME/.bashrc.local" ]] && source "$HOME/.bashrc.local"
-
-# Kiro CLI post block. Keep at the bottom of this file.
-[[ -f "${HOME}/.local/share/kiro-cli/shell/bashrc.post.bash" ]] && builtin source "${HOME}/.local/share/kiro-cli/shell/bashrc.post.bash"
 
 . "$HOME/.moon/bin/env"
