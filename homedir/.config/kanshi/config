@@ -1,19 +1,18 @@
 # Output profiles, applied automatically on hotplug. A profile matches when
-# every currently connected output matches an entry. Modes/positions come from
-# the machine-local ~/.config/sway/resolution; kanshi only toggles panels.
+# every currently connected output matches an entry. kanshi only toggles panels;
+# pick-best-mode selects each external's highest resolution+refresh, and HDR /
+# scale come from the machine-local ~/.config/sway/resolution.
 
 profile mobile {
 	output eDP-1 enable
 }
 
-profile docked-g81sf {
+# Any single external monitor + laptop lid: disable the panel, drive the
+# external at its best mode. "*" matches exactly one output (kanshi(5)), which
+# is the docked-with-one-display case; the exec runs after the profile applies.
+profile docked {
 	output eDP-1 disable
-	output "Samsung Electric Company Odyssey G81SF HNBYA00043" enable
-	exec ~/.local/bin/display-brightness wait-restore
-}
-
-profile docked-g93sc {
-	output eDP-1 disable
-	output "Samsung Electric Company Odyssey G93SC HNTW900005" enable
+	output "*" enable
+	exec ~/.local/bin/pick-best-mode
 	exec ~/.local/bin/display-brightness wait-restore
 }

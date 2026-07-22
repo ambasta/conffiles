@@ -1,0 +1,64 @@
+#!/bin/bash
+# Set each active external Sway output to its highest resolution, and at that
+# resolution its highest refresh rate. sway only ever picks the EDID "preferred"
+# mode on its own (often 60Hz), so this fills the gap left by the absence of a
+# "max mode" keyword in sway-output(5).
+#
+# Internal panels (eDP/LVDS/DSI) are left untouched -- their mode/scale/HDR are
+# pinned in ~/.config/sway/resolution. HDR and scale are likewise not touched
+# here; this only chooses width x height @ refresh.
+set -uo pipefail
+
+INTERNAL_OUTPUT_REGEX=${PICK_BEST_MODE_INTERNAL_REGEX:-'^(eDP|LVDS|DSI)(-|$)'}
+VIRTUAL_OUTPUT_REGEX=${PICK_BEST_MODE_VIRTUAL_REGEX:-'^(HEADLESS|VIRTUAL|WL)(-|$)'}
+
+warn() {
+	printf 'pick-best-mode: %s\n' "$*" >&2
+}
+
+command -v jq >/dev/null 2>&1 || {
+	warn "jq is required"
+	exit 1
+}
+
+json=$(swaymsg -t get_outputs -r 2>/dev/null) || {
+	warn "cannot query Sway outputs"
+	exit 1
+}
+
+# For each active, non-virtual, non-internal output emit: "<name>\t<w> <h> <r>"
+# for its best mode, chosen by highest width, then height, then refresh (mHz).
+selections=$(jq -r --arg internal "$INTERNAL_OUTPUT_REGEX" --arg virtual "$VIRTUAL_OUTPUT_REGEX" '
+	.[]
+	| select(.active == true)
+	| select(.name | test($internal) or test($virtual) | not)
+	| . as $o
+	| ($o.modes
+		| sort_by(.width, .height, .refresh)
+		| last) as $best
+	| select($best != null)
+	| "\($o.name)\t\($best.width)\t\($best.height)\t\($best.refresh)"
+' <<<"$json") || {
+	warn "failed to parse output modes"
+	exit 1
+}
+
+[[ -n $selections ]] || exit 0
+
+status=0
+while IFS=$'\t' read -r name width height refresh; do
+	[[ -n $name ]] || continue
+	# swaymsg wants refresh in Hz; sway reports mHz. Keep 3 decimals so exact
+	# advertised rates (e.g. 119.880) match rather than rounding to a missing mode.
+	hz=$(awk -v r="$refresh" 'BEGIN { printf "%.3f", r / 1000 }')
+	current=$(jq -r --arg n "$name" '.[] | select(.name == $n) | "\(.current_mode.width) \(.current_mode.height) \(.current_mode.refresh)"' <<<"$json")
+	if [[ $current == "$width $height $refresh" ]]; then
+		continue
+	fi
+	if ! swaymsg "output \"$name\" mode ${width}x${height}@${hz}Hz" >/dev/null 2>&1; then
+		warn "failed to set $name to ${width}x${height}@${hz}Hz"
+		status=1
+	fi
+done <<<"$selections"
+
+exit "$status"
