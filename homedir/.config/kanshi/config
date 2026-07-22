@@ -6,7 +6,13 @@ profile mobile {
 	output eDP-1 enable
 }
 
-profile docked {
+profile docked-g81sf {
+	output eDP-1 disable
+	output "Samsung Electric Company Odyssey G81SF HNBYA00043" enable
+	exec ~/.local/bin/display-brightness wait-restore
+}
+
+profile docked-g93sc {
 	output eDP-1 disable
 	output "Samsung Electric Company Odyssey G93SC HNTW900005" enable
 	exec ~/.local/bin/display-brightness wait-restore
