@@ -17,3 +17,4 @@ net-misc/keychain
 sys-apps/brightnessctl
 sys-power/RyzenAdj
 x11-libs/libnotify
+x11-terms/ghostty
