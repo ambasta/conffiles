@@ -252,6 +252,57 @@ rfkill_identity_matches() {
 	return 1
 }
 
+highest_refresh() {
+	local name=$1
+	"$SWAYMSG" -t get_outputs -r 2>/dev/null | jq -r --arg name "$name" '
+		.[]
+		| select(.name == $name and .current_mode != null)
+		| . as $output
+		| [.modes[]
+		   | select(.width == $output.current_mode.width)
+		   | select(.height == $output.current_mode.height)
+		   | .refresh]
+		| max // empty
+	' | head -n 1
+}
+
+# `off` is an explicit request for the normal session policy, independent of any
+# captured snapshot. XDG_RUNTIME_DIR is tmpfs, so a logout or reboot during an
+# active session discards the snapshot while the kernel keeps the rfkill soft
+# block (systemd-rfkill even restores it across boots). Without this, `off`
+# reported "already OFF" and left Bluetooth dead with no record to restore from.
+# Brightness and the keyboard light are deliberately left alone: their pre-`on`
+# values are unknowable here and both are trivially adjustable by hand.
+force_user_baseline() {
+	local id device type soft name refresh errors=0 unblocked=0
+	if command -v "$RFKILL" >/dev/null 2>&1; then
+		while read -r id device type soft; do
+			[[ -n $id && $type == bluetooth ]] || continue
+			valid_uint "$id" || continue
+			[[ $soft == blocked ]] || continue
+			if "$RFKILL" unblock "$id"; then
+				unblocked=1
+			else
+				warn "failed to unblock Bluetooth device $id"
+				errors=1
+			fi
+		done < <("$RFKILL" --raw --noheadings --output ID,DEVICE,TYPE,SOFT list bluetooth 2>/dev/null)
+		((unblocked == 0)) || say "info:     released a stale Bluetooth soft block"
+	fi
+
+	require_session 2>/dev/null || return "$errors"
+	local width height
+	while IFS=$'\t' read -r _ name _ width height _ _; do
+		valid_name "$name" && valid_uint "$width" && valid_uint "$height" || continue
+		"$SWAYMSG" -q output "$name" power on || errors=1
+		refresh=$(highest_refresh "$name")
+		valid_uint "$refresh" || continue
+		[[ $(output_refresh "$name" 2>/dev/null) == "$refresh" ]] && continue
+		set_output_mode "$name" "$width" "$height" "$refresh" || errors=1
+	done < <(capture_outputs "$("$SWAYMSG" -t get_outputs -r 2>/dev/null || printf '[]')")
+	return "$errors"
+}
+
 apply_user_targets() {
 	local file=$1 kind key a b c d e target path actual errors=0
 	while IFS=$'\t' read -r kind key a b c d e; do
@@ -540,14 +591,21 @@ enable_mode() {
 }
 
 disable_mode() {
-	local file format
+	local file format errors=0
 	if [[ -e $PENDING ]]; then
 		file=$PENDING
 	elif [[ -e $STATE ]]; then
 		file=$STATE
 	else
-		say "extreme userspace powersave: already OFF"
-		return 0
+		# No snapshot: still force the baseline, since a lost snapshot cannot
+		# undo controls the kernel is still holding.
+		force_user_baseline || errors=1
+		if ((errors == 0)); then
+			say "extreme userspace powersave: already OFF; session baseline forced"
+			return 0
+		fi
+		warn "could not fully force the session baseline"
+		return 1
 	fi
 	format=$(state_format "$file") || format=invalid
 	[[ $format == v1 ]] || die "invalid state file: $file"

@@ -47,7 +47,14 @@ extreme-powersave-user off
 ```
 
 Repeated `on` does not overwrite either script's first snapshot. User-session
-`off` restores its exact display/radio state. Root `off` restores captured
+`off` restores its exact display/radio state. Because that snapshot lives in
+`XDG_RUNTIME_DIR` (tmpfs), a logout or reboot during an active session discards
+it while the kernel keeps the Bluetooth soft block, which `systemd-rfkill` then
+restores on every subsequent boot. User-session `off` therefore always forces the
+session baseline as well: any Bluetooth soft block is released and the internal
+panel is powered on at its highest refresh rate for the current resolution, even
+when no snapshot survives. Brightness and the keyboard light are left untouched
+in that recovery path because their pre-`on` values are unknowable. Root `off` restores captured
 non-CPU controls, then always forces full performance mode: SMT and boost
 enabled, full frequency cap, performance governor/EPP, PPD `performance`, and
 USB/PCI runtime PM disabled (`power/control=on`). It also asks RyzenAdj for its

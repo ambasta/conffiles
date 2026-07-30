@@ -583,6 +583,32 @@ MOCK
 		fail 'user helper accepted an active legacy root snapshot'
 	fi
 	rm -f "$base/no-root-state"
+
+	# XDG_RUNTIME_DIR is tmpfs, so a logout or reboot during an active session
+	# discards the snapshot while the kernel keeps the Bluetooth soft block.
+	# `off` must still force the baseline instead of reporting "already OFF".
+	rm -rf "$run/extreme-powersave-user"
+	printf 'blocked\n' >"$base/rfsoft"
+	printf '60001\n' >"$base/refresh"
+	printf 'false\n' >"$base/power"
+	"${env[@]}" "$USER_SCRIPT" off >"$base/orphan-off.out" 2>&1 ||
+		fail 'user off failed while forcing the baseline'
+	assert_eq unblocked "$(cat "$base/rfsoft")" 'orphaned Bluetooth block released'
+	assert_eq 120000 "$(cat "$base/refresh")" 'orphaned refresh restored'
+	assert_eq true "$(cat "$base/power")" 'orphaned display powered on'
+	grep -q 'session baseline forced' "$base/orphan-off.out" ||
+		fail 'user off did not report forcing the baseline'
+	grep -q 'released a stale Bluetooth soft block' "$base/orphan-off.out" ||
+		fail 'user off did not report the stale Bluetooth block'
+
+	# An already-unblocked baseline must stay quiet about Bluetooth and remain
+	# idempotent rather than reporting a release that did not happen.
+	"${env[@]}" "$USER_SCRIPT" off >"$base/baseline-idempotent.out" 2>&1 ||
+		fail 'repeated baseline off failed'
+	assert_eq unblocked "$(cat "$base/rfsoft")" 'repeated baseline Bluetooth'
+	if grep -q 'released a stale Bluetooth soft block' "$base/baseline-idempotent.out"; then
+		fail 'user off reported releasing an already-unblocked radio'
+	fi
 }
 
 root_smoke
