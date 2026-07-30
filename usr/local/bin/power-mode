@@ -21,6 +21,22 @@ POWERPROFILESCTL=${EXTREME_POWERSAVE_POWERPROFILESCTL:-powerprofilesctl}
 RUNTIME_PM=${EXTREME_POWERSAVE_RUNTIME_PM:-"$SCRIPT_DIR/runtime-power-mode"}
 RYZENADJ=${EXTREME_POWERSAVE_RYZENADJ:-ryzenadj}
 
+# Sustained SMU power limits, in watts, reasserted whenever performance mode is
+# applied (boot, AC events, `power-mode performance`). The Framework EC and AMD
+# PMF derate slow PPT to protect chassis skin temperature; raising it trades a
+# warmer surface and louder fan for higher sustained all-core clocks. Set any
+# limit to 0 to leave it to firmware. STAPM deliberately differs from the stock
+# 30 W preset value so a successful write is observable in `ryzenadj -i`.
+RYZEN_STAPM_LIMIT=${EXTREME_POWERSAVE_RYZEN_STAPM_LIMIT:-28}
+RYZEN_SLOW_LIMIT=${EXTREME_POWERSAVE_RYZEN_SLOW_LIMIT:-28}
+RYZEN_FAST_LIMIT=${EXTREME_POWERSAVE_RYZEN_FAST_LIMIT:-53}
+
+for _limit in RYZEN_STAPM_LIMIT RYZEN_SLOW_LIMIT RYZEN_FAST_LIMIT; do
+	[[ ${!_limit} =~ ^[0-9]+$ ]] ||
+		{ printf 'power-mode: %s must be a whole number of watts\n' "$_limit" >&2; exit 2; }
+done
+unset _limit
+
 read_value() {
 	local path=$1
 	[[ -r $path ]] || return 1
@@ -33,11 +49,68 @@ write_value() {
 	printf '%s\n' "$value" >"$path"
 }
 
+# Extract one numeric metric from a `ryzenadj -i` limit table.
+ryzen_metric() {
+	local table=$1 wanted=$2
+	awk -F '|' -v wanted="$wanted" '
+		{
+			name = $2
+			value = $3
+			gsub(/^[[:space:]]+|[[:space:]]+$/, "", name)
+			gsub(/^[[:space:]]+|[[:space:]]+$/, "", value)
+			if (name == wanted) {
+				print value
+				exit
+			}
+		}' <<<"$table"
+}
+
+# Reassert numeric STAPM/PPT limits, then verify they actually landed. RyzenAdj
+# applies its own options in an internal order, so the --max-performance preset
+# must be a separate, earlier invocation: bundled together it resets PPT to the
+# firmware defaults and silently undoes these limits. Failures are reported
+# rather than swallowed, since AMD PMF may also revert a successful write.
+apply_ryzen_limits() {
+	local table slow expected errors=0
+	local -a args=()
+	((RYZEN_STAPM_LIMIT > 0)) && args+=(--stapm-limit="$((RYZEN_STAPM_LIMIT * 1000))")
+	((RYZEN_SLOW_LIMIT > 0)) && args+=(--slow-limit="$((RYZEN_SLOW_LIMIT * 1000))")
+	((RYZEN_FAST_LIMIT > 0)) && args+=(--fast-limit="$((RYZEN_FAST_LIMIT * 1000))")
+	((${#args[@]} > 0)) || return 0
+
+	if ! "$RYZENADJ" "${args[@]}" >/dev/null 2>&1; then
+		printf 'power-mode: ryzenadj rejected the numeric SMU limits\n' >&2
+		errors=1
+	fi
+
+	((RYZEN_SLOW_LIMIT > 0)) || return "$errors"
+	table=$("$RYZENADJ" -i 2>/dev/null) || {
+		printf 'power-mode: cannot read back live SMU limits\n' >&2
+		return 1
+	}
+	slow=$(ryzen_metric "$table" 'PPT LIMIT SLOW')
+	[[ $slow =~ ^[0-9]+([.][0-9]+)?$ ]] || {
+		printf 'power-mode: incomplete SMU limit table; slow PPT unverified\n' >&2
+		return 1
+	}
+	expected=$RYZEN_SLOW_LIMIT
+	if ! awk -v got="$slow" -v want="$expected" \
+		'BEGIN { exit !(got >= want - 0.5) }'; then
+		printf 'power-mode: slow PPT is %s W; expected %s W (AMD PMF or the EC reverted it)\n' \
+			"$slow" "$expected" >&2
+		errors=1
+	fi
+	return "$errors"
+}
+
 # These RyzenAdj selectors change Phoenix's undocumented AC/DC boost-delay
-# policy. AMD PMF and the Framework EC remain authoritative for numeric
-# STAPM/PPT and thermal limits; never fight their thermal-warning clamp here.
+# policy. On the performance path we additionally reassert numeric STAPM/PPT
+# limits, since AMD PMF and the Framework EC otherwise derate sustained slow PPT
+# for skin-temperature protection. The die's own thermal clamp (THM LIMIT CORE)
+# is left untouched, so this raises the sustained power budget without defeating
+# junction-temperature protection.
 apply_ryzen_hint() {
-	local wanted=$1 flag tmp
+	local wanted=$1 tmp flag
 	case "$wanted" in
 	performance) flag=--max-performance ;;
 	powersave) flag=--power-saving ;;
@@ -50,6 +123,10 @@ apply_ryzen_hint() {
 	fi
 	if ! "$RYZENADJ" "$flag" >/dev/null 2>&1; then
 		printf 'power-mode: ryzenadj failed to apply %s selector\n' "$wanted" >&2
+		return 1
+	fi
+	# The preset must settle before the numeric limits, or it overwrites them.
+	if [[ $wanted == performance ]] && ! apply_ryzen_limits; then
 		return 1
 	fi
 
@@ -284,7 +361,10 @@ if [[ $("$POWERPROFILESCTL" get 2>/dev/null) != "$profile" ]]; then
 	errors=1
 fi
 
-# PPD/AMD PMF can reset the hidden selector, so apply this last. Failure is
-# reported but does not invalidate the authoritative, already-verified profile.
+# PPD/AMD PMF can reset the hidden selector, so apply this last. On the
+# performance path this also reasserts and verifies the numeric SMU limits; a
+# reverted limit warns on stderr. Failure stays non-fatal so it cannot invalidate
+# the authoritative, already-verified cpufreq/PPD transition or strand an
+# `extreme-powersave off` recovery.
 apply_ryzen_hint "$ryzen_hint" || :
 exit "$errors"

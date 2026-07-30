@@ -53,10 +53,23 @@ enabled, full frequency cap, performance governor/EPP, PPD `performance`, and
 USB/PCI runtime PM disabled (`power/control=on`). It also asks RyzenAdj for its
 device-specific `--max-performance` selector; root `on` uses `--power-saving`.
 Repeated transitions reassert those selectors, including after an AC/DC event
-during an active extreme session. AMD PMF and the Framework EC remain the
-authority for numeric STAPM/PPT and thermal limits: the scripts deliberately do
-not override the EC's 15 W slow-PPT thermal-warning clamp. Repeated root `off`
-reasserts the full-performance policy. Root `on` enables USB/PCI runtime PM
+during an active extreme session. On the performance path `power-mode` also
+reasserts numeric SMU limits, because AMD PMF and the Framework EC otherwise
+derate sustained slow PPT to about 15 W for chassis skin-temperature protection.
+The `--max-performance` preset resets PPT to those firmware defaults, so the
+numeric limits are applied as a separate, later RyzenAdj invocation and then read
+back from `ryzenadj -i`; a reverted or rejected limit warns on stderr instead of
+passing silently. The defaults are STAPM 28 W, slow PPT 28 W, and fast PPT 53 W
+(STAPM deliberately differs from the stock 30 W so a successful write is
+observable); override them with
+`EXTREME_POWERSAVE_RYZEN_STAPM_LIMIT`, `EXTREME_POWERSAVE_RYZEN_SLOW_LIMIT`, and
+`EXTREME_POWERSAVE_RYZEN_FAST_LIMIT` (whole watts; `0` leaves a limit to
+firmware). Raising slow PPT trades a warmer chassis and louder fan for higher
+sustained all-core clocks; the die's own `THM LIMIT CORE` clamp is left
+untouched, so junction-temperature protection still applies. Because these run
+on every performance transition, a PMF/EC reassertion after an AC/DC event is
+re-corrected the next time performance mode runs. Repeated root `off` reasserts
+the full-performance policy. Root `on` enables USB/PCI runtime PM
 (`auto`) along with the other privileged power-saving controls. The Framework
 AMD xHCI controller matching
 `1022:15b9`/`f111:0006` remains `on` in both modes because it cannot enter D3

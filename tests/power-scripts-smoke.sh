@@ -58,6 +58,7 @@ root_smoke() {
 	put "$base/log" ''
 	put "$base/ryzenadj-log" ''
 	put "$base/ryzenadj-hint" unknown
+	printf '28\t28\t53\n' >"$base/ryzenadj-perf-limits"
 	put "$base/root-wifi" off
 	put "$base/root-wifi-link" connected
 
@@ -114,14 +115,31 @@ case "${1:-}" in
 --max-performance)
 	[[ ${MOCK_RYZENADJ_FAIL:-0} != 1 ]] || exit 19
 	printf '%s\n' performance >"$MOCK/ryzenadj-hint"
+	# The real preset resets PPT to the firmware-derated defaults. Modelling
+	# that clobber is what proves the numeric limits must be applied after it.
+	printf '30\t15\t53\n' >"$MOCK/ryzenadj-perf-limits"
 	;;
 --power-saving)
 	[[ ${MOCK_RYZENADJ_FAIL:-0} != 1 ]] || exit 19
 	printf '%s\n' powersave >"$MOCK/ryzenadj-hint"
 	;;
+--stapm-limit=* | --slow-limit=* | --fast-limit=*)
+	[[ ${MOCK_RYZENADJ_LIMIT_FAIL:-0} != 1 ]] || exit 19
+	IFS=$'\t' read -r stapm slow fast <"$MOCK/ryzenadj-perf-limits"
+	for arg in "$@"; do
+		case "$arg" in
+		--stapm-limit=*) stapm=$(( ${arg#*=} / 1000 )) ;;
+		--slow-limit=*) slow=$(( ${arg#*=} / 1000 )) ;;
+		--fast-limit=*) fast=$(( ${arg#*=} / 1000 )) ;;
+		esac
+	done
+	# AMD PMF can revert a successful write; model that separately.
+	[[ ${MOCK_RYZENADJ_PMF_REVERTS:-0} != 1 ]] || slow=15
+	printf '%s\t%s\t%s\n' "$stapm" "$slow" "$fast" >"$MOCK/ryzenadj-perf-limits"
+	;;
 -i)
 	case $(<"$MOCK/ryzenadj-hint") in
-	performance) stapm=30 slow=35 fast=53 ;;
+	performance) IFS=$'\t' read -r stapm slow fast <"$MOCK/ryzenadj-perf-limits" ;;
 	powersave) stapm=15 slow=15 fast=30 ;;
 	*) exit 3 ;;
 	esac
@@ -153,6 +171,9 @@ ac | auto | performance | max)
 	"$MOCK_BIN/powerprofilesctl" set performance
 	cat "$MOCK_SYS/devices/system/cpu/cpufreq/policy0/cpuinfo_max_freq" >"$MOCK_SYS/devices/system/cpu/cpufreq/policy0/scaling_max_freq"
 	"$MOCK_BIN/ryzenadj" --max-performance
+	# Mirror the real helper: the preset clobbers PPT, so the numeric limits
+	# are reasserted afterwards as a separate invocation.
+	"$MOCK_BIN/ryzenadj" --stapm-limit=28000 --slow-limit=28000 --fast-limit=53000
 	printf '%s\n' performance >"$MOCK_RUN/extreme-powersave.ryzenadj-policy"
 	;;
 esac
@@ -270,7 +291,7 @@ MOCK
 	"${env[@]}" "$ROOT_SCRIPT" status >"$base/off-status"
 	grep -q 'RyzenAdj selector = performance (last requested)' "$base/off-status" ||
 		fail 'root status omitted the RyzenAdj performance selector'
-	grep -q 'Ryzen SMU limits: STAPM 30.000 W, slow 35.000 W, fast 53.000 W' "$base/off-status" ||
+	grep -q 'Ryzen SMU limits: STAPM 28.000 W, slow 28.000 W, fast 53.000 W' "$base/off-status" ||
 		fail 'root status omitted the live performance limits'
 	printf '%s\n' auto >"$sys/devices/hotplug-usb/power/control"
 	DEVPATH=/devices/hotplug-usb "${env[@]}" \
@@ -325,6 +346,41 @@ MOCK
 		fail 'power-mode redundantly disabled an already-false battery-aware state'
 	assert_eq performance "$(cat "$base/ryzenadj-hint")" 'power-mode performance RyzenAdj selector'
 	assert_eq performance "$(cat "$run/extreme-powersave.ryzenadj-policy")" 'power-mode performance RyzenAdj marker'
+	# The preset must be its own earlier invocation: RyzenAdj applies options in
+	# an internal order, so bundling it with the numeric limits resets PPT to the
+	# firmware derate and silently undoes them.
+	grep -qx -- '--max-performance' "$base/ryzenadj-log" ||
+		fail 'power-mode did not apply the performance preset on its own'
+	grep -qx -- '--stapm-limit=28000 --slow-limit=28000 --fast-limit=53000' "$base/ryzenadj-log" ||
+		fail 'power-mode did not reassert the numeric SMU limits separately'
+	awk '/^--max-performance$/ { preset = NR }
+		/^--stapm-limit=/ { if (!preset || NR < preset) exit 1 }' "$base/ryzenadj-log" ||
+		fail 'power-mode applied numeric limits before the clobbering preset'
+	assert_eq $'28\t28\t53' "$(cat "$base/ryzenadj-perf-limits")" 'limits survived the preset'
+
+	# Configurable watt targets flow through, and a 0 target leaves that limit to
+	# firmware by omitting the flag entirely.
+	: >"$base/ryzenadj-log"
+	EXTREME_POWERSAVE_RYZEN_SLOW_LIMIT=22 EXTREME_POWERSAVE_RYZEN_FAST_LIMIT=0 "${env[@]}" \
+		"$REPO/usr/local/bin/power-mode" performance >/dev/null
+	grep -qx -- '--stapm-limit=28000 --slow-limit=22000' "$base/ryzenadj-log" ||
+		fail 'power-mode did not honor custom watt targets or omit a zeroed limit'
+
+	# A reverted or rejected limit must warn loudly instead of passing silently.
+	MOCK_RYZENADJ_PMF_REVERTS=1 "${env[@]}" \
+		"$REPO/usr/local/bin/power-mode" performance >"$base/pmf-revert.out" 2>&1
+	grep -q 'slow PPT is 15.000 W; expected 28 W' "$base/pmf-revert.out" ||
+		fail 'power-mode did not report a PMF-reverted slow PPT'
+	MOCK_RYZENADJ_LIMIT_FAIL=1 "${env[@]}" \
+		"$REPO/usr/local/bin/power-mode" performance >"$base/limit-fail.out" 2>&1
+	grep -q 'ryzenadj rejected the numeric SMU limits' "$base/limit-fail.out" ||
+		fail 'power-mode did not report a rejected numeric limit write'
+
+	# A non-numeric watt target is rejected before any control is touched.
+	if EXTREME_POWERSAVE_RYZEN_SLOW_LIMIT=abc "${env[@]}" \
+		"$REPO/usr/local/bin/power-mode" performance >/dev/null 2>&1; then
+		fail 'power-mode accepted a non-numeric watt target'
+	fi
 
 	printf '%s\n' true >"$base/battery-aware"
 	: >"$base/battery-aware-attempts"
