@@ -5,6 +5,7 @@
 app-containers/podman wrapper
 app-containers/skopeo rootless
 app-crypt/pinentry gtk
+app-emulation/qemu io-uring jemalloc keyutils lzo numa -pin-upstream-blobs systemtap usb usbredir zstd
 app-misc/ddcutil usb-monitor user-permissions
 dev-db/postgresql llvm python threads uuid
 dev-lang/rust rust-analyzer rustfmt rust-src system-bootstrap system-llvm
@@ -37,6 +38,7 @@ sys-apps/fwupd amdgpu bluetooth fastboot flashrom gnutls lzma nvme seccomp spi t
 sys-apps/portage gentoo-dev
 sys-apps/systemd boot gnuefi kernel-install seccomp
 sys-apps/xdg-desktop-portal screencast
+sys-firmware/edk2 secureboot
 # sys-cluster/minikube libvirt
 # move sys-devel/clang-common llvm-core/clang-common
 llvm-core/clang-common stricter
