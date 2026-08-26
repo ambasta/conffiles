@@ -1,0 +1,418 @@
+#!/bin/bash
+# Drive the docked ("clamshell") layout for kanshi's docked profile: bring every
+# external output up at its highest resolution and the highest refresh rate the
+# display controller can actually drive, and only then switch the internal panel
+# off.
+#
+# Why this is a script and not just "output eDP-1 disable" plus a mode command in
+# the kanshi profile:
+#
+#   * The highest advertised mode is frequently not drivable. A monitor advertises
+#     what its panel can show, not what the machine in front of it can scan out.
+#     On this laptop (Framework 13 AMD, DCN 3.1) 5120x1440@240 means a 2.2 GHz
+#     pixel clock, well past what the display pipe validates -- dmesg says
+#     "Mode Validation Warning: Viewport size failed validation" and the monitor
+#     reports no DP signal. The kernel still accepts the modeset and sway still
+#     reports the requested mode back, so there is no error to key off: candidate
+#     modes have to be filtered against a pixel-clock budget before being tried.
+#   * If nothing sticks on the external, the internal panel has to stay on.
+#     Disabling it unconditionally leaves the session with no visible output at
+#     all, which is unrecoverable without a second machine.
+#
+# The budget is on pixel clock rather than link bandwidth because that is what
+# actually binds here: 5120x1440@120 at 10 bpc needs ~28 Gbit/s uncompressed,
+# more than DP 1.4 HBR3 carries, and it works fine -- DSC covers the link. Only
+# the scanout rate is out of reach.
+#
+# HDR is never touched here. Forcing it on costs 10 bpc (sway implies
+# render_bit_depth 10 with HDR, sway-output(5)) and forcing it off would undo a
+# deliberate choice; either way it does not change the pixel clock, so it is not
+# this script's business. Set it per output in ~/.config/sway/resolution, or
+# toggle it with ~/.local/bin/samsung-g93sc-hdr.
+#
+# Internal panels keep the mode/scale/HDR/ICC pinned in ~/.config/sway/resolution;
+# this only ever enables or disables them.
+#
+# Usage: dock-displays [apply|rescue|forget]
+#   apply   (default) best-mode the externals, then turn the internal panel off
+#   rescue  fall back to the internal panel alone, for when a dock left nothing
+#           visible ($mod+Shift+o in ~/.config/sway/config). Records the failing
+#           mode's pixel clock as this monitor's ceiling so the next dock stays
+#           below it.
+#   forget  drop the learned ceilings, for when the cable, dock or port changes
+set -uo pipefail
+
+# Set by load_outputs(), which splits the connected outputs by kind.
+declare -a internals=() externals=()
+
+INTERNAL_OUTPUT_REGEX=${DOCK_DISPLAYS_INTERNAL_REGEX:-'^(eDP|LVDS|DSI)(-|$)'}
+VIRTUAL_OUTPUT_REGEX=${DOCK_DISPLAYS_VIRTUAL_REGEX:-'^(HEADLESS|VIRTUAL|WL)(-|$)'}
+LOG_FILE=${DOCK_DISPLAYS_LOG:-${XDG_RUNTIME_DIR:-/tmp}/dock-displays.log}
+LOCK_FILE=${DOCK_DISPLAYS_LOCK:-${XDG_RUNTIME_DIR:-/tmp}/dock-displays.lock}
+STATE_DIR=${DOCK_DISPLAYS_STATE_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/dock-displays}
+
+# Highest pixel clock to ask for, in MHz. 1350 is a DCN 3.1-class scanout ceiling:
+# it clears 5120x1440@120 (1102 MHz) and rejects 5120x1440@240 (2204 MHz), which is
+# where this machine's line actually falls. rescue() ratchets it down per monitor
+# if reality turns out to be stricter.
+MAX_PIXEL_MHZ=${DOCK_DISPLAYS_MAX_PIXEL_MHZ:-1350}
+# How far down the surviving mode list to walk before dropping adaptive sync and
+# starting over. Modes below this are not what the monitor is for.
+MODE_ATTEMPTS=${DOCK_DISPLAYS_MODE_ATTEMPTS:-6}
+
+JSON=
+
+log() {
+	printf '%s dock-displays: %s\n' "$(date +%H:%M:%S)" "$*" |
+		tee -a "$LOG_FILE" >&2
+}
+
+die() {
+	log "$*"
+	exit 1
+}
+
+command -v jq >/dev/null 2>&1 || die "jq is required"
+command -v swaymsg >/dev/null 2>&1 || die "swaymsg is required"
+
+# kanshi runs its exec directives asynchronously and can fire them more than once
+# while a dock settles, so serialise: two concurrent runs would race on modesets.
+# This is not paranoia -- it is exactly how an earlier version managed to settle on
+# a good mode and then walk itself back up to a dead one five seconds later.
+exec 9>"$LOCK_FILE" || die "cannot open $LOCK_FILE"
+flock 9 || die "cannot lock $LOCK_FILE"
+
+reload() {
+	JSON=$(swaymsg -t get_outputs -r 2>/dev/null) || die "cannot query sway outputs"
+}
+
+# Evaluate a jq filter against a single output, addressed by name.
+query() {
+	local name=$1 filter=$2
+	jq -r --arg n "$name" ".[] | select(.name == \$n) | $filter" <<<"$JSON"
+}
+
+names_matching() {
+	jq -r --arg internal "$INTERNAL_OUTPUT_REGEX" --arg virtual "$VIRTUAL_OUTPUT_REGEX" \
+		"$1" <<<"$JSON"
+}
+
+configure() {
+	local name=$1
+	shift
+	swaymsg "output \"$name\" $*" >/dev/null 2>&1
+}
+
+hz() {
+	awk -v refresh="$1" 'BEGIN { printf "%.3f", refresh / 1000 }'
+}
+
+current_mode() {
+	query "$1" '"\(.current_mode.width) \(.current_mode.height) \(.current_mode.refresh)"'
+}
+
+# current_mode() stays space-separated so it can be compared to a candidate; this
+# is the same thing spelled the way the mode commands and the logs spell it.
+describe_mode() {
+	local width height refresh
+	read -r width height refresh < <(current_mode "$1")
+	printf '%sx%s@%sHz' "$width" "$height" "$(hz "$refresh")"
+}
+
+# An output that is on and holds a non-empty mode is showing something as far as
+# the compositor is concerned. Note the caveat in the header: this is necessary
+# but not sufficient, which is why mode selection is budgeted rather than probed.
+has_usable_mode() {
+	local name=$1
+	[[ $(query "$name" '.active') == true ]] || return 1
+	[[ $(query "$name" '.power') != false ]] || return 1
+	[[ $(query "$name" '(.current_mode.width // 0) > 0') == true ]]
+}
+
+# Exact pixel clocks harvested from the monitor's own EDID, keyed
+# "WIDTHxHEIGHT@HZ" with HZ rounded to a whole number (sway rounds refresh rates
+# differently than edid-decode prints them, and no display advertises two modes
+# within 1 Hz of each other at the same resolution).
+declare -A EXACT_CLOCK=()
+
+load_exact_clocks() {
+	local name=$1 path width height refresh clock
+	EXACT_CLOCK=()
+	command -v edid-decode >/dev/null 2>&1 || return 0
+	path=$(compgen -G "/sys/class/drm/card*-$name/edid" | head -n 1)
+	[[ -s ${path:-} ]] || return 0
+	while read -r width height refresh clock; do
+		EXACT_CLOCK["${width}x${height}@${refresh}"]=$clock
+	done < <(edid-decode <"$path" 2>/dev/null | awk '
+		{
+			res = ""; hz = ""; mhz = ""
+			for (i = 1; i <= NF; i++) {
+				if ($i ~ /^[0-9]+x[0-9]+$/ && $(i + 2) == "Hz") { res = $i; hz = $(i + 1) }
+				if ($i == "MHz") mhz = $(i - 1)
+			}
+			if (res != "" && hz != "" && mhz != "") {
+				split(res, a, "x")
+				printf "%s %s %.0f %.0f\n", a[1], a[2], hz, mhz
+			}
+		}')
+}
+
+# Pixel clock a mode needs, in MHz, from sway's width/height/refresh (refresh in
+# mHz). Prefer the figure the display itself publishes: the estimate below assumes
+# generous blanking, because the direction that hurts is guessing too low and
+# putting a mode on screen that cannot be scanned out. This monitor's
+# 5120x1440@240 is really 2204 MHz; a CVT reduced-blanking estimate calls it 1881.
+pixel_clock() {
+	local key exact
+	key="${1}x${2}@$(awk -v r="$3" 'BEGIN { printf "%.0f", r / 1000 }')"
+	exact=${EXACT_CLOCK[$key]:-}
+	if [[ -n $exact ]]; then
+		printf '%s' "$exact"
+		return
+	fi
+	awk -v w="$1" -v h="$2" -v r="$3" \
+		'BEGIN { printf "%.0f", (w + 480) * (h + 200) * (r / 1000) / 1e6 }'
+}
+
+# True when $1 <= $2.
+within() {
+	awk -v a="$1" -v b="$2" 'BEGIN { exit !(a <= b) }'
+}
+
+# Displays are keyed by identity rather than connector name: DP-2 is whichever
+# monitor happens to be on that port today, and a learned ceiling belongs to the
+# monitor-plus-cable, not to the port number.
+identity() {
+	query "$1" '"\(.make) \(.model) \(.serial)"' |
+		tr -cs '[:alnum:]' '-' | sed 's/^-//; s/-$//'
+}
+
+ceiling_file() {
+	printf '%s/%s.mhz' "$STATE_DIR" "$(identity "$1")"
+}
+
+# The configured budget, lowered to anything rescue() has since taught us about
+# this particular monitor.
+pixel_budget() {
+	local file learned
+	file=$(ceiling_file "$1")
+	[[ -r $file ]] || {
+		printf '%s' "$MAX_PIXEL_MHZ"
+		return
+	}
+	read -r learned <"$file"
+	if [[ $learned =~ ^[0-9]+$ ]] && within "$learned" "$MAX_PIXEL_MHZ"; then
+		printf '%s' "$learned"
+	else
+		printf '%s' "$MAX_PIXEL_MHZ"
+	fi
+}
+
+# Record the mode that left the user staring at a dark monitor as out of reach, by
+# pulling the ceiling just under what that mode needed. One rescue therefore rules
+# out every mode at least that demanding, not only the one that failed.
+learn_ceiling() {
+	local name=$1 width height refresh needs ceiling file
+	load_exact_clocks "$name"
+	read -r width height refresh < <(current_mode "$name")
+	[[ ${width:-0} -gt 0 ]] || return 0
+	needs=$(pixel_clock "$width" "$height" "$refresh")
+	ceiling=$(awk -v n="$needs" 'BEGIN { printf "%.0f", n * 0.98 }')
+	file=$(ceiling_file "$name")
+	mkdir -p "$STATE_DIR" || {
+		log "$name: cannot create $STATE_DIR, not recording the ceiling"
+		return 0
+	}
+	# Only ever ratchet downwards: a second rescue means we are still too high.
+	if [[ -r $file ]] && ! within "$ceiling" "$(pixel_budget "$name")"; then
+		return 0
+	fi
+	log "$name: $(describe_mode "$name") needed ${needs}MHz and did not display; capping this monitor at ${ceiling}MHz"
+	printf '%s\n' "$ceiling" >"$file" || log "$name: cannot write $file"
+}
+
+# Highest resolution first, and at each resolution the highest refresh rate, with
+# anything over the pixel-clock budget dropped. Sorting on width before height
+# picks the native mode on an ultrawide, where the widest mode has fewer pixels
+# than the tallest one (5120x1440 vs 3840x2160) but is what the panel is built for.
+mode_candidates() {
+	local name=$1 budget width height refresh
+	budget=$(pixel_budget "$name")
+	query "$name" '.modes
+		| unique_by([.width, .height, .refresh])
+		| sort_by(.width, .height, .refresh)
+		| reverse
+		| .[]
+		| "\(.width) \(.height) \(.refresh)"' |
+		while read -r width height refresh; do
+			[[ -n $width ]] || continue
+			if within "$(pixel_clock "$width" "$height" "$refresh")" "$budget"; then
+				printf '%s %s %s\n' "$width" "$height" "$refresh"
+			fi
+		done
+}
+
+try_mode() {
+	local name=$1 width=$2 height=$3 refresh=$4 wanted="$2 $3 $4"
+	[[ $(current_mode "$name") == "$wanted" ]] && return 0
+	# swaymsg reports success for a mode the kernel later refuses, so ignore its
+	# exit status and compare what sway ended up with instead.
+	configure "$name" "mode ${width}x${height}@$(hz "$refresh")Hz"
+	reload
+	[[ $(current_mode "$name") == "$wanted" ]]
+}
+
+# Walk the affordable modes, shedding adaptive sync between passes. Returns 0 as
+# soon as the output holds a mode we asked for, or if sway's own choice is at
+# least showing something.
+prepare_external() {
+	local name=$1 pass width height refresh attempt budget
+
+	load_exact_clocks "$name"
+	for pass in as-is no-adaptive-sync; do
+		if [[ $pass == no-adaptive-sync ]]; then
+			[[ $(query "$name" '.adaptive_sync_status') == enabled ]] || continue
+			log "$name: no affordable mode held, retrying without adaptive sync"
+			configure "$name" adaptive_sync off ||
+				log "$name: could not turn adaptive sync off"
+			reload
+		fi
+
+		budget=$(pixel_budget "$name")
+		attempt=0
+		while read -r width height refresh; do
+			((attempt++ < MODE_ATTEMPTS)) || break
+			if try_mode "$name" "$width" "$height" "$refresh"; then
+				log "$name: ${width}x${height}@$(hz "$refresh")Hz at $(pixel_clock "$width" "$height" "$refresh")MHz of ${budget}MHz (hdr $(query "$name" '.hdr'), adaptive_sync $(query "$name" '.adaptive_sync_status'))"
+				return 0
+			fi
+			log "$name: ${width}x${height}@$(hz "$refresh")Hz refused, sway kept $(describe_mode "$name")"
+		done < <(mode_candidates "$name")
+		((attempt > 0)) || log "$name: no advertised mode fits ${budget}MHz"
+	done
+
+	# Whatever sway negotiated on its own still beats a dark screen.
+	if has_usable_mode "$name"; then
+		log "$name: keeping the compositor-chosen mode $(describe_mode "$name")"
+		return 0
+	fi
+	return 1
+}
+
+load_outputs() {
+	mapfile -t internals < <(names_matching '.[] | select(.name | test($internal)) | .name')
+	mapfile -t externals < <(names_matching \
+		'.[] | select(.name | test($internal) or test($virtual) | not) | .name')
+}
+
+# When a dock leaves nothing visible, the one layout guaranteed to come back is
+# the laptop panel on its own, with the mode/scale/ICC ~/.config/sway/resolution
+# pins for it. Replugging the cable redocks, at a mode below whatever just failed.
+rescue() {
+	local name active=0
+
+	load_outputs
+	for name in "${internals[@]}"; do
+		if configure "$name" enable; then
+			active=1
+		else
+			log "$name: could not enable"
+		fi
+	done
+	if ((active == 0)); then
+		die "no internal panel to fall back to, leaving ${externals[*]} alone"
+	fi
+	for name in "${externals[@]}"; do
+		[[ $(query "$name" '.active') == true ]] || continue
+		learn_ceiling "$name"
+		configure "$name" disable || log "$name: could not disable"
+	done
+	log "rescue: back to ${internals[*]} only"
+}
+
+# Undo the learning. Needed after a cable, dock or port change, and after a rescue
+# that was about something other than a dark monitor.
+forget() {
+	local name file
+	load_outputs
+	for name in "${externals[@]}"; do
+		file=$(ceiling_file "$name")
+		if [[ -e $file ]]; then
+			rm -f "$file" && log "$name: forgot the learned pixel-clock ceiling"
+		else
+			log "$name: no learned pixel-clock ceiling to forget"
+		fi
+	done
+}
+
+apply() {
+	local -a usable
+	local name
+
+	load_outputs
+
+	if ((${#externals[@]} == 0)); then
+		for name in "${internals[@]}"; do
+			configure "$name" enable || log "$name: could not enable"
+		done
+		log "no external output connected, internal panel left on"
+		return 0
+	fi
+
+	usable=()
+	for name in "${externals[@]}"; do
+		if [[ $(query "$name" '.active') != true ]]; then
+			configure "$name" enable || log "$name: could not enable"
+			reload
+		fi
+		if prepare_external "$name"; then
+			usable+=("$name")
+		else
+			log "$name: no usable mode at all"
+		fi
+	done
+
+	if ((${#usable[@]} == 0)); then
+		for name in "${internals[@]}"; do
+			configure "$name" enable || log "$name: could not enable"
+		done
+		log "none of ${externals[*]} holds a mode, internal panel left on"
+		return 1
+	fi
+
+	reload
+	for name in "${internals[@]}"; do
+		[[ $(query "$name" '.active') == true ]] || continue
+		if configure "$name" disable; then
+			log "$name: disabled, driving ${usable[*]}"
+		else
+			log "$name: could not disable"
+		fi
+	done
+
+	# A single external is now the whole desktop, so pull it to the origin: sway
+	# placed it to the right of the panel while the panel was still on, which
+	# would otherwise leave the coordinate space starting at an offset. Doing this
+	# after the panel is off avoids momentarily stacking two outputs at 0,0.
+	if ((${#usable[@]} == 1)); then
+		configure "${usable[0]}" position 0 0 ||
+			log "${usable[0]}: could not move to the origin"
+	fi
+}
+
+action=${1:-apply}
+reload
+case $action in
+apply)
+	apply
+	;;
+rescue)
+	rescue
+	;;
+forget)
+	forget
+	;;
+*)
+	die "usage: dock-displays [apply|rescue|forget]"
+	;;
+esac

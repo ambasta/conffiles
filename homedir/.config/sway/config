@@ -36,8 +36,9 @@ output * max_render_time 1
 output * subpixel rgb
 default_border pixel 1
 
-# kanshi turns off the internal panel whenever an external monitor is attached
-# (profiles in ~/.config/kanshi/config).
+# kanshi reacts to hotplug (profiles in ~/.config/kanshi/config) and hands the
+# docked layout to dock-displays, which turns the internal panel off only once an
+# external is confirmed to hold a mode.
 exec kanshi
 
 include ~/.config/sway/input
@@ -55,6 +56,12 @@ bindsym $mod+d exec $menu
 
 # start the lockscreen
 bindsym $mod+Shift+p exec $lockscreen
+
+# Escape hatch for a dock that leaves nothing visible: fall back to the laptop
+# panel alone. This also teaches dock-displays that the mode it just chose does not
+# display on that monitor, so the next dock stays below it; run
+# `dock-displays forget` if you pressed this for any other reason.
+bindsym $mod+Shift+o exec ~/.local/bin/dock-displays rescue
 
 # Drag floating windows by holding down $mod and left mouse button.
 # Resize them with right mouse button + $mod.

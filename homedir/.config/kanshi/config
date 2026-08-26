@@ -1,18 +1,24 @@
 # Output profiles, applied automatically on hotplug. A profile matches when
-# every currently connected output matches an entry. kanshi only toggles panels;
-# pick-best-mode selects each external's highest resolution+refresh, and HDR /
-# scale come from the machine-local ~/.config/sway/resolution.
+# every currently connected output matches an entry. kanshi only decides which
+# panels exist; the docked layout itself is dock-displays' job, and HDR / scale /
+# ICC for the laptop panel come from the machine-local ~/.config/sway/resolution.
 
 profile mobile {
 	output eDP-1 enable
 }
 
-# Any single external monitor + laptop lid: disable the panel, drive the
-# external at its best mode. "*" matches exactly one output (kanshi(5)), which
-# is the docked-with-one-display case; the exec runs after the profile applies.
+# Any single external monitor + laptop lid. Note that the panel is enabled here
+# rather than disabled: dock-displays turns it off only once the external is
+# actually holding a mode, so a monitor that refuses every mode degrades to an
+# extended desktop instead of a session with nothing visible on it. kanshi will
+# not fight that (it skips re-applying a profile that still matches, see
+# apply_profile() in kanshi), so the panel stays off until the cable moves.
+#
+# "*" matches exactly one output (kanshi(5)), which is the docked-with-one-display
+# case; the exec directives run after the profile has been applied.
 profile docked {
-	output eDP-1 disable
+	output eDP-1 enable
 	output "*" enable
-	exec ~/.local/bin/pick-best-mode
+	exec ~/.local/bin/dock-displays
 	exec ~/.local/bin/display-brightness wait-restore
 }
