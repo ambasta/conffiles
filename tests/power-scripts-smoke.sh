@@ -322,6 +322,7 @@ MOCK
 	put "$run/extreme-powersave.state" sentinel
 	printf '%s\n' 1 >"$sys/devices/system/cpu/cpufreq/boost"
 	printf '%s\n' 3300 >"$policy/scaling_max_freq"
+	: >"$base/ryzenadj-log"
 	EXTREME_POWERSAVE_TESTING=1 \
 	EXTREME_POWERSAVE_SYSFS_ROOT="$sys" \
 	EXTREME_POWERSAVE_RUN_DIR="$run" \
@@ -331,8 +332,7 @@ MOCK
 		"$REPO/usr/local/bin/power-mode" battery >/dev/null
 	assert_eq 1 "$(cat "$sys/devices/system/cpu/cpufreq/boost")" 'deferred power-mode boost'
 	assert_eq 3300 "$(cat "$policy/scaling_max_freq")" 'deferred power-mode cap'
-	assert_eq powersave "$(cat "$base/ryzenadj-hint")" 'deferred RyzenAdj selector'
-	assert_eq powersave "$(cat "$run/extreme-powersave.ryzenadj-policy")" 'deferred RyzenAdj marker'
+	[[ ! -s $base/ryzenadj-log ]] || fail 'deferred power-mode invoked RyzenAdj'
 	[[ -e $run/extreme-powersave.power-source-dirty ]] || fail 'deferred power source marker missing'
 	rm -f "$run/extreme-powersave.state"
 	rm -f "$run/extreme-powersave.power-source-dirty"
@@ -341,9 +341,20 @@ MOCK
 	# failure, and verify that a successful setter actually changed PPD state.
 	printf '%s\n' false >"$base/battery-aware"
 	: >"$base/battery-aware-attempts"
+	: >"$base/ryzenadj-log"
+	rm -f "$run/extreme-powersave.ryzenadj-policy"
 	"${env[@]}" "$REPO/usr/local/bin/power-mode" performance >/dev/null
 	[[ ! -s $base/battery-aware-attempts ]] ||
 		fail 'power-mode redundantly disabled an already-false battery-aware state'
+	# Outside an extreme-powersave transition the SMU is left to firmware:
+	# RyzenAdj's direct mailbox writes race the EC and AMD PMF.
+	[[ ! -s $base/ryzenadj-log ]] || fail 'udev/systemd power-mode invoked RyzenAdj'
+	[[ ! -e $run/extreme-powersave.ryzenadj-policy ]] ||
+		fail 'udev/systemd power-mode recorded a RyzenAdj selector'
+
+	# The extreme toggle's own transitions (INTERNAL=1) still apply it.
+	local -a internal_env=("${env[@]}" EXTREME_POWERSAVE_INTERNAL=1)
+	"${internal_env[@]}" "$REPO/usr/local/bin/power-mode" performance >/dev/null
 	assert_eq performance "$(cat "$base/ryzenadj-hint")" 'power-mode performance RyzenAdj selector'
 	assert_eq performance "$(cat "$run/extreme-powersave.ryzenadj-policy")" 'power-mode performance RyzenAdj marker'
 	# The preset must be its own earlier invocation: RyzenAdj applies options in
@@ -361,17 +372,17 @@ MOCK
 	# Configurable watt targets flow through, and a 0 target leaves that limit to
 	# firmware by omitting the flag entirely.
 	: >"$base/ryzenadj-log"
-	EXTREME_POWERSAVE_RYZEN_SLOW_LIMIT=22 EXTREME_POWERSAVE_RYZEN_FAST_LIMIT=0 "${env[@]}" \
+	EXTREME_POWERSAVE_RYZEN_SLOW_LIMIT=22 EXTREME_POWERSAVE_RYZEN_FAST_LIMIT=0 "${internal_env[@]}" \
 		"$REPO/usr/local/bin/power-mode" performance >/dev/null
 	grep -qx -- '--stapm-limit=28000 --slow-limit=22000' "$base/ryzenadj-log" ||
 		fail 'power-mode did not honor custom watt targets or omit a zeroed limit'
 
 	# A reverted or rejected limit must warn loudly instead of passing silently.
-	MOCK_RYZENADJ_PMF_REVERTS=1 "${env[@]}" \
+	MOCK_RYZENADJ_PMF_REVERTS=1 "${internal_env[@]}" \
 		"$REPO/usr/local/bin/power-mode" performance >"$base/pmf-revert.out" 2>&1
 	grep -q 'slow PPT is 15.000 W; expected 28 W' "$base/pmf-revert.out" ||
 		fail 'power-mode did not report a PMF-reverted slow PPT'
-	MOCK_RYZENADJ_LIMIT_FAIL=1 "${env[@]}" \
+	MOCK_RYZENADJ_LIMIT_FAIL=1 "${internal_env[@]}" \
 		"$REPO/usr/local/bin/power-mode" performance >"$base/limit-fail.out" 2>&1
 	grep -q 'ryzenadj rejected the numeric SMU limits' "$base/limit-fail.out" ||
 		fail 'power-mode did not report a rejected numeric limit write'
@@ -404,12 +415,12 @@ MOCK
 	# RyzenAdj's hidden selector is supplementary to AMD PMF. A rejected or
 	# unavailable helper must be reported without invalidating the verified PPD
 	# and cpufreq transition.
-	MOCK_RYZENADJ_FAIL=1 "${env[@]}" \
+	MOCK_RYZENADJ_FAIL=1 "${internal_env[@]}" \
 		"$REPO/usr/local/bin/power-mode" performance >"$base/ryzenadj-failed.out" 2>&1
 	grep -q 'ryzenadj failed to apply performance selector' "$base/ryzenadj-failed.out" ||
 		fail 'power-mode did not report RyzenAdj selector failure'
 	assert_eq performance "$(cat "$run/extreme-powersave.ryzenadj-policy")" 'failed RyzenAdj marker preservation'
-	"${env[@]}" EXTREME_POWERSAVE_RYZENADJ="$bin/missing-ryzenadj" \
+	"${internal_env[@]}" EXTREME_POWERSAVE_RYZENADJ="$bin/missing-ryzenadj" \
 		"$REPO/usr/local/bin/power-mode" performance >"$base/ryzenadj-missing.out" 2>&1
 	grep -q 'ryzenadj is unavailable; skipped performance selector' "$base/ryzenadj-missing.out" ||
 		fail 'power-mode did not report missing RyzenAdj selector'
@@ -421,6 +432,7 @@ MOCK
 	printf '%s\n' performance >"$policy/energy_performance_preference"
 	printf '%s\n' 0 >"$sys/devices/system/cpu/cpufreq/boost"
 	: >"$base/ppd-attempts"
+	: >"$base/ryzenadj-log"
 	rm -f "$base/ppd-failed-once"
 	MOCK_PPD_FAIL_ONCE=1 EXTREME_POWERSAVE_TESTING=1 \
 	EXTREME_POWERSAVE_SYSFS_ROOT="$sys" \
@@ -434,8 +446,7 @@ MOCK
 	assert_eq power-saver "$(cat "$base/profile")" 'normal power-mode profile'
 	assert_eq powersave "$(cat "$policy/scaling_governor")" 'normal power-mode governor'
 	assert_eq power "$(cat "$policy/energy_performance_preference")" 'normal power-mode EPP'
-	assert_eq powersave "$(cat "$base/ryzenadj-hint")" 'normal power-mode RyzenAdj selector'
-	assert_eq powersave "$(cat "$run/extreme-powersave.ryzenadj-policy")" 'normal power-mode RyzenAdj marker'
+	[[ ! -s $base/ryzenadj-log ]] || fail 'normal battery power-mode invoked RyzenAdj'
 	assert_eq 2 "$(grep -c '^ppd-set:power-saver$' "$base/ppd-attempts")" 'power-mode profile retry'
 
 	# The retained legacy snapshot must now recover from SMT-off/boost-off and

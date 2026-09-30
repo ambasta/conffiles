@@ -67,10 +67,14 @@ non-CPU controls, then always forces full performance mode: SMT and boost
 enabled, full frequency cap, performance governor/EPP, PPD `performance`, and
 USB/PCI runtime PM disabled (`power/control=on`). It also asks RyzenAdj for its
 device-specific `--max-performance` selector; root `on` uses `--power-saving`.
-Repeated transitions reassert those selectors, including after an AC/DC event
-during an active extreme session. On the performance path `power-mode` also
-reasserts numeric SMU limits, because AMD PMF and the Framework EC otherwise
-derate sustained slow PPT to about 15 W for chassis skin-temperature protection.
+Only these explicit root transitions run RyzenAdj. The udev/boot
+`power-mode.service` path (AC/DC and USB-C renegotiation events) leaves the SMU
+to firmware: RyzenAdj writes the SMU mailbox directly, racing the EC (which
+continually reasserts its own SPL/sPPT/fPPT over SB-RMI) and AMD PMF/ALIB. On
+Phoenix, running it on every event coincided with ALIB and SB-RMI timeouts and
+abrupt power-offs. On `off`, RyzenAdj also sets numeric SMU limits, because AMD
+PMF and the Framework EC otherwise derate sustained slow PPT to about 15 W for
+chassis skin-temperature protection.
 The `--max-performance` preset resets PPT to those firmware defaults, so the
 numeric limits are applied as a separate, later RyzenAdj invocation and then read
 back from `ryzenadj -i`; a reverted or rejected limit warns on stderr instead of
@@ -81,11 +85,11 @@ observable); override them with
 `EXTREME_POWERSAVE_RYZEN_FAST_LIMIT` (whole watts; `0` leaves a limit to
 firmware). Raising slow PPT trades a warmer chassis and louder fan for higher
 sustained all-core clocks; the die's own `THM LIMIT CORE` clamp is left
-untouched, so junction-temperature protection still applies. Because these run
-on every performance transition, a PMF/EC reassertion after an AC/DC event is
-re-corrected the next time performance mode runs. Repeated root `off` reasserts
-the full-performance policy. Root `on` enables USB/PCI runtime PM
-(`auto`) along with the other privileged power-saving controls. The Framework
+untouched, so junction-temperature protection still applies. A PMF/EC
+reassertion is not re-corrected after AC/DC events; rerun root `off` to reapply
+the limits. Repeated root `off` reasserts the full-performance policy. Root `on`
+enables USB/PCI runtime PM (`auto`) along with the other privileged
+power-saving controls. The Framework
 AMD xHCI controller matching
 `1022:15b9`/`f111:0006` remains `on` in both modes because it cannot enter D3
 and otherwise floods the kernel journal; its USB children can still autosuspend.

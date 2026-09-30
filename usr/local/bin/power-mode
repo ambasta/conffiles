@@ -21,12 +21,12 @@ POWERPROFILESCTL=${EXTREME_POWERSAVE_POWERPROFILESCTL:-powerprofilesctl}
 RUNTIME_PM=${EXTREME_POWERSAVE_RUNTIME_PM:-"$SCRIPT_DIR/runtime-power-mode"}
 RYZENADJ=${EXTREME_POWERSAVE_RYZENADJ:-ryzenadj}
 
-# Sustained SMU power limits, in watts, reasserted whenever performance mode is
-# applied (boot, AC events, `power-mode performance`). The Framework EC and AMD
-# PMF derate slow PPT to protect chassis skin temperature; raising it trades a
-# warmer surface and louder fan for higher sustained all-core clocks. Set any
-# limit to 0 to leave it to firmware. STAPM deliberately differs from the stock
-# 30 W preset value so a successful write is observable in `ryzenadj -i`.
+# Sustained SMU power limits, in watts, reasserted when `extreme-powersave off`
+# forces performance mode. The Framework EC and AMD PMF derate slow PPT to
+# protect chassis skin temperature; raising it trades a warmer surface and louder
+# fan for higher sustained all-core clocks. Set any limit to 0 to leave it to
+# firmware. STAPM deliberately differs from the stock 30 W preset value so a
+# successful write is observable in `ryzenadj -i`.
 RYZEN_STAPM_LIMIT=${EXTREME_POWERSAVE_RYZEN_STAPM_LIMIT:-28}
 RYZEN_SLOW_LIMIT=${EXTREME_POWERSAVE_RYZEN_SLOW_LIMIT:-28}
 RYZEN_FAST_LIMIT=${EXTREME_POWERSAVE_RYZEN_FAST_LIMIT:-53}
@@ -157,12 +157,6 @@ fi
 # toggle uses INTERNAL=1 while holding this same lock for its own transition.
 if [[ $INTERNAL != 1 && ( -e $STATE || -e $PENDING ) ]]; then
 	: >"$DEFERRED"
-	# A physical AC/DC transition can rewrite the hidden SMU selector even
-	# though the normal CPU/profile transition is deferred. Reassert only a
-	# fully committed extreme policy; leave an in-flight activation untouched.
-	if [[ -e $STATE ]]; then
-		apply_ryzen_hint powersave || :
-	fi
 	printf 'power-mode: extreme powersave is active; transition deferred\n'
 	exit 0
 fi
@@ -361,10 +355,19 @@ if [[ $("$POWERPROFILESCTL" get 2>/dev/null) != "$profile" ]]; then
 	errors=1
 fi
 
+# RyzenAdj writes the SMU mailbox directly, racing the EC (SB-RMI) and AMD
+# PMF/ALIB, which reassert their own limits within seconds anyway. On Phoenix
+# that race coincided with ALIB/SB-RMI timeouts and abrupt power-offs when it ran
+# on every USB-C renegotiation, so only an explicit extreme-powersave transition
+# (INTERNAL=1) touches it; udev, systemd and plain root runs leave the SMU to
+# firmware.
+#
 # PPD/AMD PMF can reset the hidden selector, so apply this last. On the
 # performance path this also reasserts and verifies the numeric SMU limits; a
 # reverted limit warns on stderr. Failure stays non-fatal so it cannot invalidate
 # the authoritative, already-verified cpufreq/PPD transition or strand an
 # `extreme-powersave off` recovery.
-apply_ryzen_hint "$ryzen_hint" || :
+if [[ $INTERNAL == 1 ]]; then
+	apply_ryzen_hint "$ryzen_hint" || :
+fi
 exit "$errors"
