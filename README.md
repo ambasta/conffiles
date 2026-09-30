@@ -21,6 +21,14 @@ this repo with symlinks plus root-owned copies for boot-critical files.
 ./user_install.sh
 ```
 
+`root_install.sh` symlinks everything except files read before `/home` mounts
+(systemd units, udev rules, tmpfiles, modprobe, sysctl), root-executed power
+scripts, and NetworkManager dispatcher scripts, which it installs as root-owned
+copies recorded in `/var/lib/conffiles/root-install.copies`. Anything removed
+from the repo is pruned on the next run: dangling repo symlinks always, and
+recorded copies only while their content is unchanged (removed units are
+disabled first).
+
 `user_install.sh` records only its own destinations under
 `${XDG_STATE_HOME:-$HOME/.local/state}/conffiles`; it never scans or cleans
 unmanaged parts of the home directory.
